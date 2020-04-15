@@ -6,14 +6,18 @@ from utils import reading, visualization
 
 
 class MRI_Dataset(Dataset):
-
-    def __init__(self, images_path, gts_path):
+    """
+    Class to handle data loading
+    """
+    def __init__(self, images_path, masks_path):
         """
         Args:
+        images_path - pathlib.Path: path to images folder
+        masks_path - pathlib.Path: path to mask folder
 
         """
         self.images_path = images_path
-        self.gts_path = gts_path
+        self.masks_path = masks_path
         self.get_ids()
 
     def __len__(self):
@@ -22,8 +26,8 @@ class MRI_Dataset(Dataset):
     def __getitem__(self, idx):
         current_id = self.ids[idx]
         current_img_path = self.images_path / current_id
-        image, gt = reading.get_img_gt_pair(current_img_path, self.gts_path)
-        visualization.visualize_img_gt_pair(image, gt)
+        image, mask = reading.get_img_mask_pair(current_img_path, self.masks_path)
+        visualization.visualize_img_mask_pair(image, mask)
 
         return current_id
 

@@ -33,7 +33,7 @@ class MRI_Dataset(Dataset):
 
     def get_ids(self):
         self.ids = []
-        for image_path in self.images_path.glob('**/*'):
+        for image_path in self.images_path.glob('*'):
             self.ids.append(image_path.stem + image_path.suffix)
 
         print("Number of items in dataset: ", len(self.ids), "\n")

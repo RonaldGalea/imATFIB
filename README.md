@@ -1,6 +1,6 @@
 # imATFIB
 
-Supports ACDC, MMWHS, Imgogen datasets.
+Supports ACDC, MMWHS, Imogen datasets.
 
 Converting to npy:
 - it is possible to convert all .nii or .nii.gz files to .npy which is afterwards faster to read during training

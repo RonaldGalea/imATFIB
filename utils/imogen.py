@@ -2,11 +2,12 @@ from pathlib import Path
 import numpy as np
 import nibabel as nib
 
-from utils import visualization
-
 
 def multi_class_label(dir_name):
     """
+    Constructs multi-class label for imogen data
+
+
     Args:
     dir_name: string - imogen_patients_3d or imogen_control_3d
 
@@ -47,27 +48,3 @@ def multi_class_label(dir_name):
 
         print("Done with id: ", img_id, "\n")
         # visualization.visualize_img_mask_pair(np.ones(multi_class.shape), multi_class)
-
-
-def nii_to_npy(root_src, destination):
-    """
-    Args:
-    root_src: pathlib.Path - path to root source directory
-    destination: string - name of the desired destination directory
-
-    Copies all contents of root_src, maintaining directory structure, changing .nii and .nii.gz
-    files to .npy files
-    """
-    root_name = root_src.parts[-1]
-    root_dest = Path(str(root_src).replace(root_name, destination))
-    root_dest.mkdir(exist_ok=True)
-    for element in root_src.glob("**/*"):
-        new_element = Path(str(element).replace(root_name, destination))
-        if element.is_dir():
-            new_element.mkdir(exist_ok=True)
-        if element.is_file():
-            image = np.array(nib.load(element).dataobj)
-            name_with_ext = new_element.parts[-1]
-            only_name = name_with_ext.split('.')[0]
-            new_element = Path(str(new_element).replace(name_with_ext, only_name))
-            np.save(new_element, image)

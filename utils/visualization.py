@@ -6,12 +6,39 @@ import matplotlib.pyplot as plt
 from utils import reading
 
 
-def visualize_img_mask_pair(image_3d, mask_3d, exist_label=False, height=600, width=600,
-                            matplot=True, max_plot_nr=8):
+def visualize_img_mask_pair_2d(image, mask, height=600, width=600, matplot=False):
+    """
+    Args:
+    image - ndarray: HxW image
+    mask - ndarray: HxW label
+
+    height, width - int: displayed height and width
+    matplot - bool: use matplotlib to plot (better colors)
+
+    Return:
+    """
+    resize = Resize(height=height, width=width, interpolation=cv2.INTER_CUBIC)
+    augmented = resize(image=image, mask=mask)
+    image = augmented['image']
+    mask = augmented['mask']
+
+    if matplot:
+        show_images([image, mask], 4, ['image', 'mask'])
+        plt.close('all')
+    else:
+        image = (image * (255/image.max())).astype(np.uint8)
+        mask = (mask * (255/mask.max())).astype(np.uint8)
+        cv2.imshow("img", image)
+        cv2.imshow("mask", mask)
+        cv2.waitKey(0)
+
+
+def visualize_img_mask_pair(image_3d, mask_3d, exist_label=True, height=600, width=600,
+                            matplot=False, max_plot_nr=8):
     """
     Args:
     image_3d - ndarray: HxWxC image_3d
-    mask_3d - ndarray: HxWxC label
+    mask_3d - ndarray: HxWxC label_3d
     exist_label - bool: true will show labels regardless if there's any, false will only show
     images where the heart is visible
     height, width - int: displayed height and width
@@ -37,9 +64,6 @@ def visualize_img_mask_pair(image_3d, mask_3d, exist_label=False, height=600, wi
             current_img = augmented['image']
             current_mask = augmented['mask']
 
-            current_img = (current_img * (255/current_img.max())).astype(np.uint8)
-            current_mask = (current_mask * (255/mask_3d.max())).astype(np.uint8)
-
             if matplot:
                 imgs_to_plot.extend([current_img, current_mask])
                 titles.extend(["image" + str(i), "mask" + str(i)])
@@ -49,6 +73,8 @@ def visualize_img_mask_pair(image_3d, mask_3d, exist_label=False, height=600, wi
                     plt.close('all')
                     imgs_to_plot, titles = [], []
             else:
+                current_img = (current_img * (255/current_img.max())).astype(np.uint8)
+                current_mask = (current_mask * (255/mask_3d.max())).astype(np.uint8)
                 cv2.imshow("img", current_img)
                 cv2.imshow("mask", current_mask)
                 cv2.waitKey(0)
@@ -56,17 +82,17 @@ def visualize_img_mask_pair(image_3d, mask_3d, exist_label=False, height=600, wi
     cv2.destroyAllWindows()
 
 
-def visualize_dataset(images_3d_path, masks_3d_path):
-    """
-    Args:
-    images_3d_path - pathlib.Path: path to image_3ds folder
-    masks_3d_path - pathlib.Path: path to mask_3d folder
-
-    Return:
-    """
-    for image_3d_path in images_3d_path.glob('**/*'):
-        image_3d, mask_3d = reading.get_img_mask_pair(image_3d_path, masks_3d_path)
-        visualize_img_mask_pair(image_3d, mask_3d)
+# def visualize_dataset(images_3d_path, masks_3d_path):
+#     """
+#     Args:
+#     images_3d_path - pathlib.Path: path to image_3ds folder
+#     masks_3d_path - pathlib.Path: path to mask_3d folder
+#
+#     Return:
+#     """
+#     for image_3d_path in images_3d_path.glob('**/*'):
+#         image_3d, mask_3d = reading.get_img_mask_pair(image_3d_path, masks_3d_path)
+#         visualize_img_mask_pair(image_3d, mask_3d)
 
 
 def show_images(images, cols=1, titles=None):

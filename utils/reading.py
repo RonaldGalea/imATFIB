@@ -41,8 +41,8 @@ def get_img_mask_pair(image_path, numpy=False, dset_name=constants.acdc_root_dir
             gt_name_with_ext = only_name + '_gt.npy'
         mask_path = Path(str(image_path).replace(name_with_ext, gt_name_with_ext))
 
-    print("From reading: ", image_path)
-    print("From reading: ", mask_path, "\n")
+    # print("From reading: ", image_path)
+    # print("From reading: ", mask_path, "\n")
     image_info, mask_info = nib.load(image_path), nib.load(mask_path)
     if numpy:
         image = np.load(image_path)
@@ -51,6 +51,8 @@ def get_img_mask_pair(image_path, numpy=False, dset_name=constants.acdc_root_dir
         image = np.array(image_info.dataobj)
         mask = np.array(mask_info.dataobj)
     # necessary information to save .nii file and compute metrics
+    image = image.astype(np.float32)
+    mask = mask.astype(np.float32)
     info = [mask_info.affine, mask_info.header]
 
     return image, mask, info

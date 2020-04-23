@@ -1,0 +1,15 @@
+{
+"model_version": "baseline",
+
+"learning_rate": 1e-3,
+"batch_size": 32,
+"num_epochs": 10,
+"height": 224,
+"width": 224,
+"interpolation": 1,
+"k_split": 5,
+"split_train_val": true,
+"seg_type": "whole-heart",
+"norm_type": "per_slice",
+"data_augmentation": 0
+}

@@ -10,3 +10,12 @@ mmwhs_root_dir_npy = "mmwhs_npy"
 
 multi_class_seg = "multiple-classes"
 whole_heart_seg = "whole-heart"
+
+per_slice = "per_slice"
+per_volume = "per_volume"
+per_dataset = "per_dataset"
+norm_types = [per_slice, per_volume, per_dataset]
+
+params_path = "experiments/{}/{}/params.json"
+
+unet = "2D_Unet"

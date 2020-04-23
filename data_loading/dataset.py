@@ -3,7 +3,8 @@ import numpy as np
 from torch.utils.data import Dataset
 
 import general_config
-from utils import reading, visualization
+from utils import reading, visualization, statistics
+from data_loading import data_augmentation
 
 
 class MRI_Dataset(Dataset):
@@ -13,27 +14,30 @@ class MRI_Dataset(Dataset):
     depending on the current directory structure
     """
 
-    def __init__(self, dset_name, dset_type, paths, seg_type):
+    def __init__(self, dset_name, dset_type, paths, params):
         """
         Args:
         dset_name - string: name of the dataset
         dset_type - string: train or val
         paths - list of Path: paths to data samples
+        params - params.json of current experiment
         """
         self.dset_name = dset_name
         self.dset_type = dset_type
         self.paths = paths
-        self.seg_type = seg_type
+        self.seg_type = params.seg_type
+        self.norm_type = params.norm_type
+        self.augmentor = data_augmentation.Augmentor(params)
         self.load_everything_in_memory()
+        self.necessary_preprocessing()
+        self.visualize_dataset_samples()
 
     def __len__(self):
         return len(self.paths)
 
     def __getitem__(self, idx):
         image, mask = self.images[idx], self.masks[idx]
-
         print("In dataset, image shape: ", image.shape)
-        visualization.visualize_img_mask_pair(image, mask)
 
         return self.paths[idx]
 
@@ -51,18 +55,28 @@ class MRI_Dataset(Dataset):
                                                           numpy=general_config.read_numpy,
                                                           dset_name=self.dset_name,
                                                           seg_type=self.seg_type)
-            images.append(image)
-            masks.append(mask)
+            # permute dimensions to D x H x W for easier indexing
+            # after processing will be switched back
+            images.append(np.transpose(image, (2, 0, 1)))
+            masks.append(np.transpose(mask, (2, 0, 1)))
             infos.append(info)
+
         self.images = images
         self.masks = masks
         self.info = info
 
     def necessary_preprocessing(self):
-        pass
+        for i, (image, mask) in enumerate(zip(self.images, self.masks)):
+            resized_image, resized_mask = self.augmentor.resize_volume_HW(image, mask)
+            self.images[i] = resized_image
+            self.masks[i] = resized_mask
 
-    def augmentation(self):
-        pass
+        statistics.normalize(self.images, self.norm_type)
+
+    def visualize_dataset_samples(self):
+        for image, mask in zip(self.images, self.masks):
+            visualization.visualize_img_mask_pair(np.transpose(image, (1, 2, 0)),
+                                                  np.transpose(mask, (1, 2, 0)))
 
     def dataset_info(self):
         print("Dataset name: ", self.dset_name, "\n")

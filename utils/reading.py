@@ -43,11 +43,14 @@ def get_img_mask_pair(image_path, numpy=False, dset_name=constants.acdc_root_dir
 
     print("From reading: ", image_path)
     print("From reading: ", mask_path, "\n")
+    image_info, mask_info = nib.load(image_path), nib.load(mask_path)
     if numpy:
         image = np.load(image_path)
         mask = np.load(mask_path)
     else:
-        image = np.array(nib.load(image_path).dataobj)
-        mask = np.array(nib.load(mask_path).dataobj)
+        image = np.array(image_info.dataobj)
+        mask = np.array(mask_info.dataobj)
+    # necessary information to save .nii file and compute metrics
+    info = [mask_info.affine, mask_info.header]
 
-    return image, mask
+    return image, mask, info

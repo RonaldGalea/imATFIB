@@ -49,8 +49,8 @@ def visualize_img_mask_pair(image_3d, mask_3d, exist_label=True, height=600, wid
     """
     resize = Resize(height=height, width=width, interpolation=cv2.INTER_CUBIC)
     imgs_to_plot, titles = [], []
-    print("image_3d shape: ", image_3d.shape)
-    print("Unique elements in mask_3d: ", np.unique(mask_3d), "\n")
+    print("In visualization, image_3d shape: ", image_3d.shape)
+    print("In visualization, Unique elements in mask_3d: ", np.unique(mask_3d), "\n")
     for i in range(image_3d.shape[2]):
         if exist_label or (mask_3d[:, :, i].max() > 0):
 
@@ -80,19 +80,6 @@ def visualize_img_mask_pair(image_3d, mask_3d, exist_label=True, height=600, wid
                 cv2.waitKey(0)
 
     cv2.destroyAllWindows()
-
-
-# def visualize_dataset(images_3d_path, masks_3d_path):
-#     """
-#     Args:
-#     images_3d_path - pathlib.Path: path to image_3ds folder
-#     masks_3d_path - pathlib.Path: path to mask_3d folder
-#
-#     Return:
-#     """
-#     for image_3d_path in images_3d_path.glob('**/*'):
-#         image_3d, mask_3d = reading.get_img_mask_pair(image_3d_path, masks_3d_path)
-#         visualize_img_mask_pair(image_3d, mask_3d)
 
 
 def show_images(images, cols=1, titles=None):

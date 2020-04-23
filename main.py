@@ -8,7 +8,7 @@ from data_loading import create_datasets
 def main():
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('-dataset_name', dest="dataset_name",
-                        help='mmwhs/imatfib/acdc', default=constants.mmwhs_root_dir)
+                        help='mmwhs/imatfib/acdc', default=constants.acdc_root_dir)
     parser.add_argument('-seg_type', dest="seg_type",
                         help='multiple-classes/whole-heart', default=constants.multi_class_seg)
     parser.add_argument('-k_split', dest="k_split", type=int,

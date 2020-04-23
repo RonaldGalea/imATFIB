@@ -18,34 +18,54 @@ class MRI_Dataset(Dataset):
         Args:
         dset_name - string: name of the dataset
         dset_type - string: train or val
-        paths - list of Path: paths to data samples (representing data ids)
+        paths - list of Path: paths to data samples
         """
         self.dset_name = dset_name
         self.dset_type = dset_type
-        self.ids = paths
+        self.paths = paths
         self.seg_type = seg_type
+        self.load_everything_in_memory()
 
     def __len__(self):
-        return len(self.ids)
+        return len(self.paths)
 
     def __getitem__(self, idx):
-        current_id = self.ids[idx]
-        image, mask = reading.get_img_mask_pair(image_path=current_id,
-                                                numpy=general_config.read_numpy,
-                                                dset_name=self.dset_name, seg_type=self.seg_type)
+        image, mask = self.images[idx], self.masks[idx]
+
+        print("In dataset, image shape: ", image.shape)
         visualization.visualize_img_mask_pair(image, mask)
 
-        return current_id
+        return self.paths[idx]
 
-    def get_ids(self):
-        self.ids = []
-        for image_path in self.images_path.glob('*'):
-            self.ids.append(image_path.stem + image_path.suffix)
+    def load_everything_in_memory(self):
+        """
+        Since the datasets are small enough to be loaded wholely in memory....
 
-        print("Number of items in dataset: ", len(self.ids), "\n")
+        self.images = list of volumes
+        self.masks = labels for those volumes
+        self.info = list of [affine, header] for each volume
+        """
+        images, masks, infos = [], [], []
+        for path in self.paths:
+            image, mask, info = reading.get_img_mask_pair(image_path=path,
+                                                          numpy=general_config.read_numpy,
+                                                          dset_name=self.dset_name,
+                                                          seg_type=self.seg_type)
+            images.append(image)
+            masks.append(mask)
+            infos.append(info)
+        self.images = images
+        self.masks = masks
+        self.info = info
+
+    def necessary_preprocessing(self):
+        pass
+
+    def augmentation(self):
+        pass
 
     def dataset_info(self):
         print("Dataset name: ", self.dset_name, "\n")
         print("Dataset type: ", self.dset_type, "\n")
-        print("Elements in dataset: ", len(self.ids), "\n")
+        print("Elements in dataset: ", len(self.paths), "\n")
         print("Segmentation type: ", self.seg_type, "\n")

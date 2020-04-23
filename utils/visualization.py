@@ -64,7 +64,6 @@ def visualize_img_mask_pair(image_3d, mask_3d):
                 titles.extend(["image" + str(i), "mask" + str(i)])
                 if len(imgs_to_plot) >= max_plot_nr:
                     show_images(imgs_to_plot, 4, titles)
-                    # input("Press any key to continue...")
                     plt.close('all')
                     imgs_to_plot, titles = [], []
             else:

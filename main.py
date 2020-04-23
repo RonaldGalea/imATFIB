@@ -3,14 +3,15 @@ import argparse
 
 import general_config
 import constants
-from data_loading import create_datasets
+from training import train
+from data_loading import create_datasets, create_dataloaders
 from utils.params import Params
 
 
 def main():
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('-dataset_name', dest="dataset_name",
-                        help='mmwhs/imatfib-whs/ACDC_training', default=constants.mmwhs_root_dir)
+                        help='mmwhs/imatfib-whs/ACDC_training', default=constants.imatfib_root_dir)
     parser.add_argument('-experiment_name', dest="experiment_name",
                         help='experiment root folder', default=constants.unet)
 
@@ -23,6 +24,11 @@ def main():
 
     training_dataset, validation_dataset = create_datasets.train_val(dataset_name=args.dataset_name,
                                                                      params=params)
+    training_dataloader, validation_dataloader = create_dataloaders.get_dataloaders(training_dataset, validation_dataset, params)
+
+    model_trainer = train.Model_Trainer(model="dummy", training_dataloader=training_dataloader,
+                                        validation_dataloader=validation_dataloader, params=params)
+    model_trainer.train()
 
 
 def validate_args(args):

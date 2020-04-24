@@ -2,7 +2,7 @@ from medpy.metric.binary import hd, dc
 import numpy as np
 
 
-def metrics(img_gt, img_pred, voxel_size):
+def metrics(img_gt, img_pred):
     """
     author: Clément Zotti (clement.zotti@usherbrooke.ca)
     date: April 2017

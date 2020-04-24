@@ -54,7 +54,7 @@ class MRI_Dataset(Dataset):
         self.concatenate_everything()
 
     def __len__(self):
-        return len(self.paths)
+        return len(self.images.shape[0])
 
     def __getitem__(self, batched_indices):
         """

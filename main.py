@@ -1,11 +1,16 @@
 from pathlib import Path
 import argparse
+try:
+    from apex import amp
+except ImportError:
+    print("Cannot import NVIDIA Apex...")
+
 
 import general_config
 import constants
 from training import train
-from data_loading import create_datasets, create_dataloaders
 from utils.params import Params
+from utils import training_setup
 
 
 def main():
@@ -14,6 +19,9 @@ def main():
                         help='mmwhs/imatfib-whs/ACDC_training', default=constants.imatfib_root_dir)
     parser.add_argument('-experiment_name', dest="experiment_name",
                         help='experiment root folder', default=constants.unet)
+    parser.add_argument('-load_model', dest="load_model",
+                        help='lodel model weights and optimizer at specified experiment',
+                        default=constants.unet)
 
     args = parser.parse_args()
     print("Args in main: ", args, "\n")
@@ -22,9 +30,9 @@ def main():
     params = Params(constants.params_path.format(args.dataset_name, args.experiment_name))
     validate_params(params)
 
-    training_dataset, validation_dataset = create_datasets.train_val(dataset_name=args.dataset_name,
-                                                                     params=params)
-    training_dataloader, validation_dataloader = create_dataloaders.get_dataloaders(training_dataset, validation_dataset, params)
+    training_dataloader, validation_dataloader = training_setup.prepare_dataloaders(args.dataset_name,
+                                                                                    params)
+    model = training_setup.model_setup(args.dset_name, params)
 
     model_trainer = train.Model_Trainer(model="dummy", training_dataloader=training_dataloader,
                                         validation_dataloader=validation_dataloader, params=params)

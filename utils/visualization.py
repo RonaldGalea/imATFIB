@@ -44,8 +44,8 @@ def visualize_img_mask_pair(image_3d, mask_3d):
     """
     resize = Resize(height=height, width=width, interpolation=cv2.INTER_CUBIC)
     imgs_to_plot, titles = [], []
-    print("In visualization, image_3d shape: ", image_3d.shape)
-    print("In visualization, Unique elements in mask_3d: ", np.unique(mask_3d), "\n")
+    # print("In visualization, image_3d shape: ", image_3d.shape)
+    # print("In visualization, Unique elements in mask_3d: ", np.unique(mask_3d), "\n")
     for i in range(image_3d.shape[2]):
         if exist_label or (mask_3d[:, :, i].max() > 0):
 

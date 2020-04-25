@@ -17,5 +17,9 @@ per_dataset = "per_dataset"
 norm_types = [per_slice, per_volume, per_dataset]
 
 params_path = "experiments/{}/{}/params.json"
+stats_path = "experiments/{}/{}/stats.json"
+model_path = "experiments/{}/{}/model_checkpoint.pt"
 
 unet = "2D_Unet"
+
+heart = ["LV", "RV", "MYO"]

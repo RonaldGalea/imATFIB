@@ -54,16 +54,15 @@ class MRI_Dataset(Dataset):
         self.concatenate_everything()
 
     def __len__(self):
-        return len(self.images.shape[0])
+        return self.images.shape[0]
 
     def __getitem__(self, batched_indices):
         """
         Returns batch of slices
         """
-        print(batched_indices)
         images_list, masks_list, infos_list = [], [], []
         for idx in batched_indices:
-            image, mask, info = self.images[idx], self.masks[idx], self.infos[idx]
+            image, mask, info = self.images[idx], self.masks[idx], self.infos[0]
 
             # torch tensors
             image = torch.from_numpy(image)

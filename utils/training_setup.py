@@ -12,7 +12,8 @@ def model_setup(dset_name, params):
     creates model and moves it on to cpu/gpu
     """
     if params.seg_type == constants.whole_heart_seg:
-        n_classes = 1
+        # heart plus background
+        n_classes = 2
     else:
         if dset_name == constants.acdc_root_dir:
             n_classes = 4
@@ -22,7 +23,7 @@ def model_setup(dset_name, params):
     return model
 
 
-def optimizer_setup(model, params, zero_bn_bias_decay=False):
+def optimizer_setup(model, params):
     """
     creates optimizer
     """
@@ -34,7 +35,7 @@ def optimizer_setup(model, params, zero_bn_bias_decay=False):
     return optimizer
 
 
-def prepare_datasets(dset_name, params):
+def prepare_dataloaders(dset_name, params):
     training_dataset, validation_dataset = create_datasets.train_val(dataset_name=dset_name,
                                                                      params=params)
     training_dataloader, validation_dataloader = create_dataloaders.get_dataloaders(
@@ -42,14 +43,14 @@ def prepare_datasets(dset_name, params):
     return training_dataloader, validation_dataloader
 
 
-def load_model(model, params, dset_name):
+def load_model(model, optimizer, params, dset_name):
     checkpoint = torch.load(constants.model_path.format(dset_name, params.model_id))
     model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer = checkpoint['optimizer_state_dict']
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     start_epoch = checkpoint['epoch']
     print('Model loaded successfully')
 
-    return model, optimizer, start_epoch
+    return start_epoch
 
 
 def save_model(epoch, model, optimizer, params, stats, dset_name):
@@ -58,8 +59,8 @@ def save_model(epoch, model, optimizer, params, stats, dset_name):
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
     }, constants.model_path.format(dset_name, params.model_id))
-    params.save(constants.params_path.format(dset_name, params.model_id))
     stats.save(constants.stats_path.format(dset_name, params.model_id))
+    print("Model saved successfully!")
 
 
 def plain_adam(model, params):

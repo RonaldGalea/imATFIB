@@ -17,10 +17,12 @@ visualize_dataset - bool: visually inspect image/mask before training starts
 
 read_numpy = False
 height, width = 224, 224
-matplot = False
+matplot = True
 exist_label = True
 max_plot_nr = 8
-evaluation_step = 1
-statistics_print_step = 10
+evaluation_step = 5
+statistics_print_step = 5
 visualize_dataset = False
+use_amp = False
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# device = "cpu"

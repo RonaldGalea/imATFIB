@@ -1,4 +1,5 @@
 {
+"model_id": "2D_Unet",
 "model_version": "baseline",
 
 "learning_rate": 1e-3,
@@ -11,5 +12,6 @@
 "split_train_val": true,
 "seg_type": "multiple-classes",
 "norm_type": "per_slice",
-"data_augmentation": 0
+"data_augmentation": 0,
+"optimizer": "sgd"
 }

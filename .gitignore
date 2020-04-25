@@ -8,3 +8,7 @@
 *.pyc
 *.npy
 *.cfg
+*.pt
+*.json
+*.json
+general_config.py

@@ -2,7 +2,7 @@ from medpy.metric.binary import hd, dc
 import numpy as np
 
 
-def metrics(img_gt, img_pred):
+def metrics(img_gt, img_pred, n_classes):
     """
     author: Clément Zotti (clement.zotti@usherbrooke.ca)
     date: April 2017
@@ -30,7 +30,7 @@ def metrics(img_gt, img_pred):
 
     res = []
     # Loop on each classes of the input images
-    for c in [3, 1, 2]:
+    for c in range(1, n_classes + 1):
         # Copy the gt image to not alterate the input
         gt_c_i = np.copy(img_gt)
         gt_c_i[gt_c_i != c] = 0
@@ -48,4 +48,4 @@ def metrics(img_gt, img_pred):
 
         res += [dice]
 
-    return res
+    return np.array(res)

@@ -11,6 +11,7 @@ except ImportError:
 import general_config
 import constants
 from training import train
+from utils.dataset_utils import data_normalization
 from utils.params import Params
 from utils.training_utils import prints, training_processing, training_setup
 from utils import visualization
@@ -24,10 +25,10 @@ def main():
                         help='experiment root folder', default=constants.unet)
     parser.add_argument('-load_model', dest="load_model", type=bool,
                         help='lodel model weights and optimizer at specified experiment',
-                        default=True)
+                        default=False)
     parser.add_argument('-train_model', dest="train_model", type=bool,
                         help='trains model, from checkpoint if load_model else from scratch',
-                        default=True)
+                        default=False)
     parser.add_argument('-evaluate_model', dest="evaluate_model", type=bool,
                         help='evaluates model, load_model should be true when this is true',
                         default=False)
@@ -36,6 +37,9 @@ def main():
                         default=False)
     parser.add_argument('-inspect_train_results', dest="inspect_train_results", type=bool,
                         help='visualize model results on the training set, augmentations inlcuded',
+                        default=False)
+    parser.add_argument('-compute_dset_mean_std', dest="compute_dset_mean_std", type=bool,
+                        help='computes the mean and std of the dataset, should then set corresponding values in general_config',
                         default=False)
 
     args = parser.parse_args(args=[])
@@ -77,8 +81,8 @@ def main():
     if args.view_results:
         model.eval()
         with torch.no_grad():
-            for volume, mask, info in validation_dataloader:
-                print("In main: ", volume.shape)
+            for volume, mask in validation_dataloader:
+                print("In main: ", volume.shape, torch.mean(volume), torch.std(volume))
                 volume, mask = volume.to(general_config.device), mask.to(general_config.device)
                 processed_volume = training_processing.process_volume(model, volume, mask)
                 dice, concrete_volume, mask = training_processing.compute_dice(processed_volume,
@@ -86,6 +90,24 @@ def main():
                 visualization.visualize_img_mask_pair(np.transpose(concrete_volume, (1, 2, 0)),
                                                       np.transpose(mask, (1, 2, 0)))
                 print(dice)
+
+    if args.inspect_train_results:
+        model.eval()
+        with torch.no_grad():
+            for image, mask in training_dataloader:
+                print("In main: ", image.shape)
+                image, mask = image.to(general_config.device), mask.to(general_config.device)
+                prediction = model(image)
+                dice, concrete_volume, mask = training_processing.compute_dice(prediction,
+                                                                               mask)
+                visualization.visualize_img_mask_pair(np.transpose(concrete_volume, (1, 2, 0)),
+                                                      np.transpose(mask, (1, 2, 0)))
+                print(dice)
+
+    if args.compute_dset_mean_std:
+        images = training_dataloader.dataset.get_images()
+        mean, std = data_normalization.per_dataset_norm(images)
+        print("Dataset mean and standard deviation: ", mean, std)
 
 
 def validate_args(args):

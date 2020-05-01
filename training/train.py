@@ -49,9 +49,9 @@ class Model_Trainer():
             self.model.train()
             self.train_statistics.reset(epoch)
             self.lr_handling.reset_batch_count()
-            for batch_nr, (image, mask, infos) in enumerate(self.training_dataloader):
+            for batch_nr, (image, mask) in enumerate(self.training_dataloader):
                 image, mask = image.to(general_config.device), mask.to(general_config.device)
-                loss_value, dice = self.process_sample_train(image, mask, infos)
+                loss_value, dice = self.process_sample_train(image, mask)
                 self.train_statistics.update(loss_value, dice)
                 self.lr_handling.step(epoch, self.optimizer)
 
@@ -73,9 +73,9 @@ class Model_Trainer():
         self.model.eval()
         self.val_statistics.reset(epoch)
         with torch.no_grad():
-            for batch_nr, (image, mask, infos) in enumerate(self.validation_dataloader):
+            for batch_nr, (image, mask) in enumerate(self.validation_dataloader):
                 image, mask = image.to(general_config.device), mask.to(general_config.device)
-                loss_value, dice = self.process_sample_val(image, mask, infos)
+                loss_value, dice = self.process_sample_val(image, mask)
                 self.val_statistics.update(loss_value, dice)
 
         print("Final validation results: ")
@@ -88,7 +88,7 @@ class Model_Trainer():
             training_setup.save_model(epoch, self.model, self.optimizer, self.params, self.stats,
                                       self.dataset_name)
 
-    def process_sample_train(self, image, mask, infos):
+    def process_sample_train(self, image, mask):
         """
         Process batch in train
         """
@@ -106,7 +106,7 @@ class Model_Trainer():
         dice, _, _ = training_processing.compute_dice(prediction, mask)
         return loss.item(), dice
 
-    def process_sample_val(self, volume, mask, infos):
+    def process_sample_val(self, volume, mask):
         """
         Processes volume slice by slice, upsamples output to original shape, computes metrics
         """

@@ -1,9 +1,7 @@
-import numpy as np
 from torch.utils.data import Dataset
 
 import general_config
 from utils import visualization
-from utils.dataset_utils import reading
 from data_loading import data_augmentation
 
 
@@ -25,11 +23,11 @@ class MRI_Dataset(Dataset):
         self.paths = paths
         self.seg_type = params.seg_type
         self.norm_type = params.norm_type
+        self.params = params
         self.augmentor = data_augmentation.Augmentor(params)
         self.load_everything_in_memory()
         if general_config.visualize_dataset:
             self.visualize_dataset_samples()
-        self.necessary_preprocessing()
 
     def __len__(self):
         raise NotImplementedError
@@ -38,36 +36,14 @@ class MRI_Dataset(Dataset):
         raise NotImplementedError
 
     def load_everything_in_memory(self):
-        """
-        Since the datasets are small enough to be loaded wholely in memory....
-
-        self.images = list of volumes
-        self.masks = labels for those volumes
-        self.info = list of namedtuple(affine, header) for each volume
-        """
-        images, masks, infos = [], [], []
-        for path in self.paths:
-            image, mask, info = reading.get_img_mask_pair(image_path=path,
-                                                          numpy=general_config.read_numpy,
-                                                          dset_name=self.dset_name,
-                                                          seg_type=self.seg_type)
-            # permute dimensions to D x H x W for easier indexing
-            # after processing will be switched back
-            images.append(np.transpose(image, (2, 0, 1)))
-            masks.append(np.transpose(mask, (2, 0, 1)))
-            infos.append(info)
-
-        self.images = images
-        self.masks = masks
-        self.infos = infos
-
-    def necessary_preprocessing(self):
         raise NotImplementedError
 
     def visualize_dataset_samples(self):
         for image, mask in zip(self.images, self.masks):
-            visualization.visualize_img_mask_pair(np.transpose(image, (1, 2, 0)),
-                                                  np.transpose(mask, (1, 2, 0)))
+            if len(image.shape == 3):
+                visualization.visualize_img_mask_pair(image, mask)
+            else:
+                visualization.visualize_img_mask_pair_2d(image, mask)
             exit = input("exit? y/n")
             if exit == 'y':
                 return

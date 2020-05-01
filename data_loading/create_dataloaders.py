@@ -1,6 +1,5 @@
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler, SequentialSampler
-import general_config
 
 
 def get_dataloaders(training_dataset, validation_dataset, params):

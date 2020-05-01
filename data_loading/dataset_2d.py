@@ -1,8 +1,9 @@
 import torch
-import numpy as np
 
-from utils.dataset_utils import data_normalization
+import general_config
 from data_loading import dataset_base
+from utils.dataset_utils import reading
+from utils import visualization
 
 
 class MRI_Dataset_2d(dataset_base.MRI_Dataset):
@@ -33,10 +34,9 @@ class MRI_Dataset_2d(dataset_base.MRI_Dataset):
     """
     def __init__(self, dset_name, dset_type, paths, params):
         super(MRI_Dataset_2d, self).__init__(dset_name, dset_type, paths, params)
-        self.concatenate_everything()
 
     def __len__(self):
-        return self.images.shape[0]
+        return len(self.images)
 
     def __getitem__(self, batched_indices):
         """
@@ -44,9 +44,20 @@ class MRI_Dataset_2d(dataset_base.MRI_Dataset):
         - torch.tensor of shape: Batch x 1 x H x W (image: float32)
         - torch.tensor of shape: Batch x H x W (mask: int64)
         """
-        images_list, masks_list, infos_list = [], [], []
+        images_list, masks_list = [], []
         for idx in batched_indices:
-            image, mask, info = self.images[idx], self.masks[idx], self.infos[0]
+            image, mask = self.images[idx], self.masks[idx]
+
+            # print("Before", image.shape, mask.shape, type(image), type(mask))
+            # visualization.visualize_img_mask_pair_2d(image, mask)
+
+            if self.params.data_augmentation:
+                image, mask = self.augmentor.augment_data(image, mask)
+            else:
+                image, mask = self.augmentor.resize_slice_HW(image, mask)
+
+            # print("After", image.shape, mask.shape, type(image), type(mask))
+            # visualization.visualize_img_mask_pair_2d(image, mask, "after_img", "after_mask")
 
             # torch tensors
             image = torch.from_numpy(image)
@@ -54,23 +65,35 @@ class MRI_Dataset_2d(dataset_base.MRI_Dataset):
 
             height, width = image.shape
             image = image.view(1, height, width)
+            image = self.augmentor.normalize(image)
 
             mask = mask.to(torch.int64)
 
             images_list.append(image)
             masks_list.append(mask)
-            infos_list.append(info)
 
-        return torch.stack(images_list), torch.stack(masks_list), infos_list
+        return torch.stack(images_list), torch.stack(masks_list)
 
-    def necessary_preprocessing(self):
-        for i, (image, mask) in enumerate(zip(self.images, self.masks)):
-            resized_image, resized_mask = self.augmentor.resize_volume_HW(image, mask)
-            self.images[i] = resized_image
-            self.masks[i] = resized_mask
+    def load_everything_in_memory(self):
+        """
+        Since the datasets are small enough to be loaded wholely in memory....
 
-        data_normalization.normalize(self.images, self.norm_type)
+        self.images = list of 2D slices
+        self.masks = labels for those slices
+        """
+        images, masks = [], []
+        for path in self.paths:
+            image, mask, info = reading.get_img_mask_pair(image_path=path,
+                                                          numpy=general_config.read_numpy,
+                                                          dset_name=self.dset_name,
+                                                          seg_type=self.seg_type)
+            depth = image.shape[2]
+            for i in range(depth):
+                images.append(image[:, :, i])
+                masks.append(mask[:, :, i])
 
-    def concatenate_everything(self):
-        self.images = np.concatenate(self.images)
-        self.masks = np.concatenate(self.masks)
+        self.images = images
+        self.masks = masks
+
+    def get_images(self):
+        return self.images

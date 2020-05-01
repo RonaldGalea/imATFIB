@@ -10,7 +10,7 @@ height, width, matplot = general_config.height, general_config.width, general_co
 max_plot_nr, exist_label = general_config.max_plot_nr, general_config.exist_label
 
 
-def visualize_img_mask_pair_2d(image, mask):
+def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask'):
     """
     Args:
     image - ndarray: HxW image
@@ -30,8 +30,8 @@ def visualize_img_mask_pair_2d(image, mask):
     else:
         image = (image * (255/image.max())).astype(np.uint8)
         mask = (mask * (255/mask.max())).astype(np.uint8)
-        cv2.imshow("img", image)
-        cv2.imshow("mask", mask)
+        cv2.imshow(img_name, image)
+        cv2.imshow(mask_name, mask)
         cv2.waitKey(0)
 
 

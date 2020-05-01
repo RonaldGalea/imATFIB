@@ -16,8 +16,8 @@ visualize_dataset - bool: visually inspect image/mask before training starts
 
 
 read_numpy = False
-height, width = 224, 224
-matplot = True
+height, width = 400, 400
+matplot = False
 exist_label = True
 max_plot_nr = 8
 evaluation_step = 5
@@ -25,4 +25,12 @@ statistics_print_step = 5
 visualize_dataset = False
 use_amp = False
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+dataset_mean = 56.878749106586845
+dataset_std = 139.08557576261646
 # device = "cpu"
+
+
+"""
+Imatfib dset mean and std
+56.878749106586845 139.08557576261646
+"""

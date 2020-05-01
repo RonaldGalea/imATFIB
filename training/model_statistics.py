@@ -34,7 +34,7 @@ class Model_Statistics():
 
     def print_batches_statistics(self):
         current_time = time.time()
-        print("Epoch: ", self.epoch, "\n")
+        print(self.type + " Epoch: ", self.epoch, "\n")
         print("Statistics until batch number: ", self.batch_count, " / ", self.loader_size, "\n")
         print("LV, RV, Myo and mean dice: ", self.dice /
               self.batch_count, np.mean(self.dice) / self.batch_count, "\n")

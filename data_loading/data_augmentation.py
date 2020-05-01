@@ -28,3 +28,11 @@ class Augmentor():
             resized_mask.append(resized_mask_slice)
 
         return np.array(resized_image), np.array(resized_mask)
+
+    def resize_image_only(self, image):
+        resized_image = []
+        for img_slice in image:
+            resized_img_slice = self.resize(image=img_slice)['image']
+            resized_image.append(resized_img_slice)
+
+        return np.array(resized_image)

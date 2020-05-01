@@ -49,8 +49,8 @@ def visualize_img_mask_pair(image_3d, mask_3d):
     for i in range(image_3d.shape[2]):
         if exist_label or (mask_3d[:, :, i].max() > 0):
 
-            print("Max value of slice: ", image_3d[:, :, i].max())
-            print("Unique elements in slice mask: ", np.unique(mask_3d[:, :, i]))
+            # print("Max value of slice: ", image_3d[:, :, i].max())
+            # print("Unique elements in slice mask: ", np.unique(mask_3d[:, :, i]))
 
             current_img = image_3d[:, :, i]
             current_mask = mask_3d[:, :, i]

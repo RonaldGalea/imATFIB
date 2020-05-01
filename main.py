@@ -1,5 +1,7 @@
 from pathlib import Path
+import numpy as np
 import argparse
+import torch
 try:
     from apex import amp
     amp_available = True
@@ -11,8 +13,7 @@ import general_config
 import constants
 from training import train
 from utils.params import Params
-from utils import training_setup
-from utils import prints
+from utils import prints, training_processing, training_setup, metrics, visualization
 
 
 def main():
@@ -23,12 +24,18 @@ def main():
                         help='experiment root folder', default=constants.unet)
     parser.add_argument('-load_model', dest="load_model", type=bool,
                         help='lodel model weights and optimizer at specified experiment',
-                        default=False)
+                        default=True)
     parser.add_argument('-train_model', dest="train_model", type=bool,
                         help='trains model, from checkpoint if load_model else from scratch',
-                        default=True)
+                        default=False)
     parser.add_argument('-evaluate_model', dest="evaluate_model", type=bool,
                         help='evaluates model, load_model should be true when this is true',
+                        default=False)
+    parser.add_argument('-view_results', dest="view_results", type=bool,
+                        help='visualize model results on the validation set',
+                        default=True)
+    parser.add_argument('-inspect_train_results', dest="inspect_train_results", type=bool,
+                        help='visualize model results on the training set, augmentations inlcuded',
                         default=False)
 
     args = parser.parse_args(args=[])
@@ -53,7 +60,7 @@ def main():
     else:
         if amp_available and general_config.use_amp:
             model, optimizer = amp.initialize(
-                model, optimizer, opt_level="O2"
+                model, optimizer, opt_level=general_config.amp_opt_level
             )
     prints.print_trained_parameters_count(model, optimizer)
 
@@ -66,6 +73,22 @@ def main():
 
     if args.evaluate_model:
         model_trainer.evaluate()
+
+    if args.view_results:
+        model.eval()
+        with torch.no_grad():
+            for volume, mask, info in validation_dataloader:
+                print("In main: ", volume.shape)
+                volume, mask = volume.to(general_config.device), mask.to(general_config.device)
+                process_volume = training_processing.process_volume(model, volume, mask)
+                n_classes = process_volume.shape[1] - 1
+                mask = mask.cpu().numpy().astype(np.uint8)
+                # get the maximum values of the channels dimension, then take the indices
+                process_volume = process_volume.max(1)[1]
+                process_volume = process_volume.detach().cpu().numpy().astype(np.uint8)
+                dice = metrics.metrics(mask, process_volume, n_classes=n_classes)
+                visualization.visualize_img_mask_pair(np.transpose(process_volume, (1, 2, 0)), np.transpose(mask, (1, 2, 0)))
+                print(dice)
 
 
 def validate_args(args):

@@ -28,7 +28,7 @@ def print_trained_parameters_count(model, optimizer):
 
 def print_dataset_stats(train_loader, valid_loader):
     print('Train size: ', len(train_loader), len(train_loader.sampler.sampler))
-    print('Val size: ', len(valid_loader), len(valid_loader.sampler.sampler))
+    print('Val size: ', len(valid_loader), len(valid_loader.sampler))
 
     print("------------------------------------------------------\n")
 

@@ -1,6 +1,6 @@
 from pathlib import Path
 from utils import acdc, general
-from data_loading import dataset
+from data_loading import dataset_2d, dataset_3d
 import general_config
 import constants
 
@@ -27,9 +27,9 @@ def train_val(dataset_name, params):
         split_dict = general.train_val_split(dataset_dir, k_split=params.k_split,
                                              split_train_val=params.split_train_val)
 
-    training_dataset = dataset.MRI_Dataset(dset_name=dataset_name, dset_type='train',
+    training_dataset = dataset_2d.MRI_Dataset_2d(dset_name=dataset_name, dset_type='train',
                                            paths=split_dict['train'], params=params)
-    validation_dataset = dataset.MRI_Dataset(dset_name=dataset_name, dset_type='val',
+    validation_dataset = dataset_3d.MRI_Dataset_3d(dset_name=dataset_name, dset_type='val',
                                              paths=split_dict['val'], params=params)
 
     return training_dataset, validation_dataset

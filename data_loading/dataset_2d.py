@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-from utils import statistics
+from utils.dataset_utils import data_normalization
 from data_loading import dataset_base
 
 
@@ -19,8 +19,9 @@ class MRI_Dataset_2d(dataset_base.MRI_Dataset):
     completely may acts as a regularizing effect
     Con: ? may lead to failure to learn any inter slice dependencies (are there any for 2D though?)
 
-    - get a an amount (batch) of volumes s.t. their total depth has at least, say, 10x batch_size. Then, if
-    split batches are allowed, then they only occur every 10th batch. If no split batches are allowed,
+    - get a an amount (batch) of volumes s.t. their total depth has at least, say, 10x batch_size.
+    Then, if split batches are allowed, then they only occur every 10th batch.
+    If no split batches are allowed,
     then some slices are dropped. However, since volumes are shuffled every epoch, there should
     be no bias as to which volume's slices are lost. The only issue with this would be the exact
     training time, since actually it's slightly less slices than the total with each epoch.
@@ -39,7 +40,9 @@ class MRI_Dataset_2d(dataset_base.MRI_Dataset):
 
     def __getitem__(self, batched_indices):
         """
-        Returns batch of slices
+        Returns:
+        - torch.tensor of shape: Batch x 1 x H x W (image: float32)
+        - torch.tensor of shape: Batch x H x W (mask: int64)
         """
         images_list, masks_list, infos_list = [], [], []
         for idx in batched_indices:
@@ -48,6 +51,11 @@ class MRI_Dataset_2d(dataset_base.MRI_Dataset):
             # torch tensors
             image = torch.from_numpy(image)
             mask = torch.from_numpy(mask)
+
+            height, width = image.shape
+            image = image.view(1, height, width)
+
+            mask = mask.to(torch.int64)
 
             images_list.append(image)
             masks_list.append(mask)
@@ -61,7 +69,7 @@ class MRI_Dataset_2d(dataset_base.MRI_Dataset):
             self.images[i] = resized_image
             self.masks[i] = resized_mask
 
-        statistics.normalize(self.images, self.norm_type)
+        data_normalization.normalize(self.images, self.norm_type)
 
     def concatenate_everything(self):
         self.images = np.concatenate(self.images)

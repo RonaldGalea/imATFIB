@@ -11,7 +11,7 @@ except ImportError:
 import general_config
 import constants
 from training import model_statistics, lr_handler
-from utils import training_setup, training_processing
+from utils.training_utils import training_setup, training_processing
 
 
 class Model_Trainer():
@@ -42,7 +42,7 @@ class Model_Trainer():
         self.threshold = 1
 
     def train(self):
-        for epoch in range(self.params.n_epochs):
+        for epoch in range(self.start_epoch, self.params.n_epochs):
             print("Starting epoch: ", epoch, "\n")
             start = time.time()
 
@@ -51,7 +51,6 @@ class Model_Trainer():
             self.lr_handling.reset_batch_count()
             for batch_nr, (image, mask, infos) in enumerate(self.training_dataloader):
                 image, mask = image.to(general_config.device), mask.to(general_config.device)
-                mask = mask.to(torch.int64)
                 loss_value, dice = self.process_sample_train(image, mask, infos)
                 self.train_statistics.update(loss_value, dice)
                 self.lr_handling.step(epoch, self.optimizer)
@@ -76,7 +75,6 @@ class Model_Trainer():
         with torch.no_grad():
             for batch_nr, (image, mask, infos) in enumerate(self.validation_dataloader):
                 image, mask = image.to(general_config.device), mask.to(general_config.device)
-                mask = mask.to(torch.int64)
                 loss_value, dice = self.process_sample_val(image, mask, infos)
                 self.val_statistics.update(loss_value, dice)
 
@@ -94,7 +92,7 @@ class Model_Trainer():
         """
         Process batch in train
         """
-        prediction = self.feed_forward_batch(image, mask)
+        prediction = self.model(image)
 
         self.optimizer.zero_grad()
         loss = self.loss_function(prediction, mask)
@@ -105,7 +103,7 @@ class Model_Trainer():
             loss.backward()
         self.optimizer.step()
 
-        dice = training_processing.compute_dice(prediction, mask)
+        dice, _, _ = training_processing.compute_dice(prediction, mask)
         return loss.item(), dice
 
     def process_sample_val(self, volume, mask, infos):
@@ -114,13 +112,8 @@ class Model_Trainer():
         """
         processed_volume = training_processing.process_volume(self.model, volume, mask)
         loss = self.loss_function(processed_volume, mask)
-        dice = training_processing.compute_dice(processed_volume, mask)
+        dice, _, _ = training_processing.compute_dice(processed_volume, mask)
         return loss.item(), dice
-
-    def feed_forward_batch(self, image, mask):
-        batch, height, width = image.shape
-        image = image.view(batch, 1, height, width)
-        return self.model(image)
 
     def update_stats(self):
         val_dice = self.val_statistics.get_dice()

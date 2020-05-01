@@ -7,7 +7,7 @@ Unet paper: Olaf Ronneberger, Philipp Fischer, Thomas Brox: https://arxiv.org/ab
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils.unet_parts import *
+from models.model_parts.unet_parts import *
 
 
 class UNet(nn.Module):

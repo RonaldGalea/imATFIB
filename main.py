@@ -1,4 +1,3 @@
-from pathlib import Path
 import numpy as np
 import argparse
 import torch
@@ -13,7 +12,8 @@ import general_config
 import constants
 from training import train
 from utils.params import Params
-from utils import prints, training_processing, training_setup, metrics, visualization
+from utils.training_utils import prints, training_processing, training_setup
+from utils import visualization
 
 
 def main():
@@ -27,13 +27,13 @@ def main():
                         default=True)
     parser.add_argument('-train_model', dest="train_model", type=bool,
                         help='trains model, from checkpoint if load_model else from scratch',
-                        default=False)
+                        default=True)
     parser.add_argument('-evaluate_model', dest="evaluate_model", type=bool,
                         help='evaluates model, load_model should be true when this is true',
                         default=False)
     parser.add_argument('-view_results', dest="view_results", type=bool,
                         help='visualize model results on the validation set',
-                        default=True)
+                        default=False)
     parser.add_argument('-inspect_train_results', dest="inspect_train_results", type=bool,
                         help='visualize model results on the training set, augmentations inlcuded',
                         default=False)
@@ -80,14 +80,11 @@ def main():
             for volume, mask, info in validation_dataloader:
                 print("In main: ", volume.shape)
                 volume, mask = volume.to(general_config.device), mask.to(general_config.device)
-                process_volume = training_processing.process_volume(model, volume, mask)
-                n_classes = process_volume.shape[1] - 1
-                mask = mask.cpu().numpy().astype(np.uint8)
-                # get the maximum values of the channels dimension, then take the indices
-                process_volume = process_volume.max(1)[1]
-                process_volume = process_volume.detach().cpu().numpy().astype(np.uint8)
-                dice = metrics.metrics(mask, process_volume, n_classes=n_classes)
-                visualization.visualize_img_mask_pair(np.transpose(process_volume, (1, 2, 0)), np.transpose(mask, (1, 2, 0)))
+                processed_volume = training_processing.process_volume(model, volume, mask)
+                dice, concrete_volume, mask = training_processing.compute_dice(processed_volume,
+                                                                               mask)
+                visualization.visualize_img_mask_pair(np.transpose(concrete_volume, (1, 2, 0)),
+                                                      np.transpose(mask, (1, 2, 0)))
                 print(dice)
 
 

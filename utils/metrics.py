@@ -1,4 +1,4 @@
-from medpy.metric.binary import hd, dc
+from medpy.metric.binary import dc
 import numpy as np
 
 

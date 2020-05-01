@@ -1,7 +1,7 @@
 import torch
 
 from data_loading import dataset_base
-from utils import statistics
+from utils.dataset_utils import data_normalization
 
 
 class MRI_Dataset_3d(dataset_base.MRI_Dataset):
@@ -18,7 +18,9 @@ class MRI_Dataset_3d(dataset_base.MRI_Dataset):
 
     def __getitem__(self, batched_indices):
         """
-        Returns a volume
+        Returns:
+        torch.tensor: D x H x W (float32 image)
+        torch.tensor: D x H x W (int64 mask)
         """
         idx = batched_indices[0]
         image, mask, info = self.images[idx], self.masks[idx], self.infos[0]
@@ -27,6 +29,8 @@ class MRI_Dataset_3d(dataset_base.MRI_Dataset):
         image = torch.from_numpy(image)
         mask = torch.from_numpy(mask)
 
+        mask = mask.to(torch.int64)
+
         return image, mask, info
 
     def necessary_preprocessing(self):
@@ -34,4 +38,4 @@ class MRI_Dataset_3d(dataset_base.MRI_Dataset):
             resized_image = self.augmentor.resize_image_only(image)
             self.images[i] = resized_image
 
-        statistics.normalize(self.images, self.norm_type)
+        data_normalization.normalize(self.images, self.norm_type)

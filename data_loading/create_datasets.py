@@ -1,5 +1,5 @@
 from pathlib import Path
-from utils import acdc, general
+from utils.dataset_structuring import acdc, general
 from data_loading import dataset_2d, dataset_3d
 import general_config
 import constants

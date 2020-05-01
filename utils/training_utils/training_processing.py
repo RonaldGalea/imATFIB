@@ -7,12 +7,13 @@ from utils import metrics
 def compute_dice(prediction, mask):
     """
     Args:
-
     prediction: cuda tensor - model prediction after log softmax (depth, channels, height, width)
     mask: cuda long tensor - ground truth (depth, height, width)
 
     Returns:
     dice score - ndarray
+    concrete prediction - ndarray (depth height width) uint8
+    mask - ndarray (depth height width) uint8
     """
     n_classes = prediction.shape[1] - 1
     mask = mask.cpu().numpy().astype(np.uint8)
@@ -20,7 +21,7 @@ def compute_dice(prediction, mask):
     prediction = prediction.max(1)[1]
     prediction = prediction.detach().cpu().numpy().astype(np.uint8)
     dice = metrics.metrics(mask, prediction, n_classes=n_classes)
-    return dice
+    return dice, prediction, mask
 
 
 def process_volume(model, volume, mask):

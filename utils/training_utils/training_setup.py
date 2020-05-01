@@ -47,7 +47,8 @@ def load_model(model, optimizer, params, dset_name):
     checkpoint = torch.load(constants.model_path.format(dset_name, params.model_id))
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    start_epoch = checkpoint['epoch']
+    # start training from the next epoch, do not repeat the same epoch it was saved on
+    start_epoch = checkpoint['epoch'] + 1
     print('Model loaded successfully')
 
     return start_epoch

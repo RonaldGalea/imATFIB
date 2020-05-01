@@ -1,9 +1,8 @@
 import numpy as np
 import time
-import torch
 
 import general_config
-from utils import prints
+from utils.training_utils import prints
 
 
 class Model_Statistics():

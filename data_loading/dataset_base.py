@@ -2,7 +2,8 @@ import numpy as np
 from torch.utils.data import Dataset
 
 import general_config
-from utils import reading, visualization
+from utils import visualization
+from utils.dataset_utils import reading
 from data_loading import data_augmentation
 
 

@@ -1,41 +1,41 @@
-import torch
 import numpy as np
 from torch.utils.data import Dataset
 
 import general_config
-from utils import reading, visualization
+from utils import visualization
+from utils.dataset_utils import reading
+from data_loading import data_augmentation
 
 
 class MRI_Dataset(Dataset):
     """
-    Class to handle data loading
-    Receives a list of paths to the input samples, and finds the corresponding ground truth masks
-    depending on the current directory structure
+    Base Dataset class, MRI_Dataset_2d and MRI_Dataset_3d inherit from this
     """
 
-    def __init__(self, dset_name, dset_type, paths, seg_type):
+    def __init__(self, dset_name, dset_type, paths, params):
         """
         Args:
         dset_name - string: name of the dataset
         dset_type - string: train or val
         paths - list of Path: paths to data samples
+        params - params.json of current experiment
         """
         self.dset_name = dset_name
         self.dset_type = dset_type
         self.paths = paths
-        self.seg_type = seg_type
+        self.seg_type = params.seg_type
+        self.norm_type = params.norm_type
+        self.augmentor = data_augmentation.Augmentor(params)
         self.load_everything_in_memory()
+        if general_config.visualize_dataset:
+            self.visualize_dataset_samples()
+        self.necessary_preprocessing()
 
     def __len__(self):
-        return len(self.paths)
+        raise NotImplementedError
 
-    def __getitem__(self, idx):
-        image, mask = self.images[idx], self.masks[idx]
-
-        print("In dataset, image shape: ", image.shape)
-        visualization.visualize_img_mask_pair(image, mask)
-
-        return self.paths[idx]
+    def __getitem__(self, batched_indices):
+        raise NotImplementedError
 
     def load_everything_in_memory(self):
         """
@@ -43,7 +43,7 @@ class MRI_Dataset(Dataset):
 
         self.images = list of volumes
         self.masks = labels for those volumes
-        self.info = list of [affine, header] for each volume
+        self.info = list of namedtuple(affine, header) for each volume
         """
         images, masks, infos = [], [], []
         for path in self.paths:
@@ -51,18 +51,26 @@ class MRI_Dataset(Dataset):
                                                           numpy=general_config.read_numpy,
                                                           dset_name=self.dset_name,
                                                           seg_type=self.seg_type)
-            images.append(image)
-            masks.append(mask)
+            # permute dimensions to D x H x W for easier indexing
+            # after processing will be switched back
+            images.append(np.transpose(image, (2, 0, 1)))
+            masks.append(np.transpose(mask, (2, 0, 1)))
             infos.append(info)
+
         self.images = images
         self.masks = masks
-        self.info = info
+        self.infos = infos
 
     def necessary_preprocessing(self):
-        pass
+        raise NotImplementedError
 
-    def augmentation(self):
-        pass
+    def visualize_dataset_samples(self):
+        for image, mask in zip(self.images, self.masks):
+            visualization.visualize_img_mask_pair(np.transpose(image, (1, 2, 0)),
+                                                  np.transpose(mask, (1, 2, 0)))
+            exit = input("exit? y/n")
+            if exit == 'y':
+                return
 
     def dataset_info(self):
         print("Dataset name: ", self.dset_name, "\n")

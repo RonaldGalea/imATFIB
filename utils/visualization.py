@@ -3,20 +3,22 @@ import cv2
 from albumentations import Resize
 import matplotlib.pyplot as plt
 
-from utils import reading
+import general_config
 
 
-def visualize_img_mask_pair_2d(image, mask, height=600, width=600, matplot=False):
+height, width, matplot = general_config.height, general_config.width, general_config.matplot
+max_plot_nr, exist_label = general_config.max_plot_nr, general_config.exist_label
+
+
+def visualize_img_mask_pair_2d(image, mask):
     """
     Args:
     image - ndarray: HxW image
     mask - ndarray: HxW label
 
-    height, width - int: displayed height and width
-    matplot - bool: use matplotlib to plot (better colors)
-
     Return:
     """
+    print("In visualization, original shape ", image.shape)
     resize = Resize(height=height, width=width, interpolation=cv2.INTER_CUBIC)
     augmented = resize(image=image, mask=mask)
     image = augmented['image']
@@ -33,29 +35,22 @@ def visualize_img_mask_pair_2d(image, mask, height=600, width=600, matplot=False
         cv2.waitKey(0)
 
 
-def visualize_img_mask_pair(image_3d, mask_3d, exist_label=True, height=600, width=600,
-                            matplot=False, max_plot_nr=8):
+def visualize_img_mask_pair(image_3d, mask_3d):
     """
     Args:
     image_3d - ndarray: HxWxC image_3d
     mask_3d - ndarray: HxWxC label_3d
-    exist_label - bool: true will show labels regardless if there's any, false will only show
-    images where the heart is visible
-    height, width - int: displayed height and width
-    matplot - bool: use matplotlib to plot (better colors imo)
-    max_plot_nr - int: maximum number in matplot
-
     Return:
     """
     resize = Resize(height=height, width=width, interpolation=cv2.INTER_CUBIC)
     imgs_to_plot, titles = [], []
-    print("In visualization, image_3d shape: ", image_3d.shape)
-    print("In visualization, Unique elements in mask_3d: ", np.unique(mask_3d), "\n")
+    # print("In visualization, image_3d shape: ", image_3d.shape)
+    # print("In visualization, Unique elements in mask_3d: ", np.unique(mask_3d), "\n")
     for i in range(image_3d.shape[2]):
         if exist_label or (mask_3d[:, :, i].max() > 0):
 
-            print("Max value of slice: ", image_3d[:, :, i].max())
-            print("Unique elements in slice mask: ", np.unique(mask_3d[:, :, i]))
+            # print("Max value of slice: ", image_3d[:, :, i].max())
+            # print("Unique elements in slice mask: ", np.unique(mask_3d[:, :, i]))
 
             current_img = image_3d[:, :, i]
             current_mask = mask_3d[:, :, i]
@@ -69,7 +64,6 @@ def visualize_img_mask_pair(image_3d, mask_3d, exist_label=True, height=600, wid
                 titles.extend(["image" + str(i), "mask" + str(i)])
                 if len(imgs_to_plot) >= max_plot_nr:
                     show_images(imgs_to_plot, 4, titles)
-                    # input("Press any key to continue...")
                     plt.close('all')
                     imgs_to_plot, titles = [], []
             else:

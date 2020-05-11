@@ -4,14 +4,14 @@ import torch.optim as optim
 import general_config
 import constants
 from data_loading import create_datasets, create_dataloaders
-from models import _2D_Unet
+from models import _2D_Unet, deeplabv3_plus
 
 
 def model_setup(dset_name, params):
     """
     creates model and moves it on to cpu/gpu
     """
-    if params.seg_type == constants.whole_heart_seg:
+    if general_config.seg_type == constants.whole_heart_seg:
         # heart plus background
         n_classes = 2
     else:
@@ -19,6 +19,9 @@ def model_setup(dset_name, params):
             n_classes = 4
     if params.model_id == constants.unet:
         model = _2D_Unet.UNet(n_channels=1, n_classes=n_classes)
+    elif params.model_id == constants.deeplab:
+        model = deeplabv3_plus.DeepLabV3_plus(n_channels=1,
+                                              n_classes=n_classes, use_aspp=params.use_aspp)
     model.to(general_config.device)
     return model
 

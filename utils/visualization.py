@@ -33,6 +33,7 @@ def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask'):
         cv2.imshow(img_name, image)
         cv2.imshow(mask_name, mask)
         cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
 
 def visualize_img_mask_pair(image_3d, mask_3d):

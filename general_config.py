@@ -21,12 +21,13 @@ matplot = False
 exist_label = True
 max_plot_nr = 8
 evaluation_step = 5
-statistics_print_step = 5
+statistics_print_step = 3
 visualize_dataset = False
 use_amp = False
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 dataset_mean = 56.878749106586845
 dataset_std = 139.08557576261646
+seg_type = "whole-heart"
 # device = "cpu"
 
 

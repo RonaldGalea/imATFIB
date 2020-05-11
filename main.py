@@ -1,6 +1,7 @@
 import numpy as np
 import argparse
 import torch
+from torch.utils.tensorboard import SummaryWriter
 try:
     from apex import amp
     amp_available = True
@@ -18,17 +19,17 @@ from utils import visualization
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser = argparse.ArgumentParser(description='Run Settings.')
     parser.add_argument('-dataset_name', dest="dataset_name",
                         help='mmwhs/imatfib-whs/ACDC_training', default=constants.imatfib_root_dir)
     parser.add_argument('-experiment_name', dest="experiment_name",
-                        help='experiment root folder', default=constants.unet)
+                        help='experiment root folder', default=constants.deeplab)
     parser.add_argument('-load_model', dest="load_model", type=bool,
                         help='lodel model weights and optimizer at specified experiment',
                         default=False)
     parser.add_argument('-train_model', dest="train_model", type=bool,
                         help='trains model, from checkpoint if load_model else from scratch',
-                        default=False)
+                        default=True)
     parser.add_argument('-evaluate_model', dest="evaluate_model", type=bool,
                         help='evaluates model, load_model should be true when this is true',
                         default=False)
@@ -68,15 +69,17 @@ def main():
             )
     prints.print_trained_parameters_count(model, optimizer)
 
+    writer = SummaryWriter(filename_suffix=params.model_id)
     model_trainer = train.Model_Trainer(model=model, training_dataloader=training_dataloader,
                                         validation_dataloader=validation_dataloader,
                                         optimizer=optimizer, params=params, stats=stats,
-                                        start_epoch=start_epoch, dataset_name=args.dataset_name)
+                                        start_epoch=start_epoch, dataset_name=args.dataset_name,
+                                        writer=writer)
     if args.train_model:
         model_trainer.train()
 
     if args.evaluate_model:
-        model_trainer.evaluate()
+        model_trainer.evaluate(start_epoch)
 
     if args.view_results:
         model.eval()
@@ -118,7 +121,7 @@ def validate_args(args):
 
 def validate_params(params):
     valid_segs = [constants.whole_heart_seg, constants.multi_class_seg]
-    if params.seg_type not in valid_segs:
+    if general_config.seg_type not in valid_segs:
         raise AssertionError('Invalid Segmentation type')
 
 

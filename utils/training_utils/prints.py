@@ -52,3 +52,10 @@ def gradient_weight_check(model):
 
     print("Mean and max gradients: ", torch.mean(avg_grads), torch.mean(max_grads), "\n")
     print("Mean and max weights: ", torch.mean(avg_weigths), torch.mean(max_weigths), "\n\n")
+
+
+def update_tensorboard_graphs(writer, train_dice, train_loss, val_dice, val_loss, epoch):
+    writer.add_scalar('Loss/train', train_loss, epoch)
+    writer.add_scalar('Dice/train', train_dice, epoch)
+    writer.add_scalar('Loss/val', val_loss, epoch)
+    writer.add_scalar('Dice/val', val_dice, epoch)

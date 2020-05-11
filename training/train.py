@@ -11,7 +11,7 @@ except ImportError:
 import general_config
 import constants
 from training import model_statistics, lr_handler
-from utils.training_utils import training_setup, training_processing
+from utils.training_utils import training_setup, training_processing, prints
 
 
 class Model_Trainer():
@@ -20,7 +20,7 @@ class Model_Trainer():
     """
 
     def __init__(self, model, training_dataloader, validation_dataloader, optimizer, params, stats,
-                 dataset_name, start_epoch=0):
+                 dataset_name, writer, start_epoch=0):
         self.model = model
         self.training_dataloader = training_dataloader
         self.validation_dataloader = validation_dataloader
@@ -32,6 +32,7 @@ class Model_Trainer():
         self.val_statistics = model_statistics.Model_Statistics(len(validation_dataloader),
                                                                 params, self.model.n_classes - 1,
                                                                 'val')
+        self.writer = writer
         self.start_epoch = start_epoch
         self.dataset_name = dataset_name
 
@@ -39,7 +40,6 @@ class Model_Trainer():
         self.loss_function = torch.nn.NLLLoss(weight=None, reduction='mean')
         self.optimizer = optimizer
         self.lr_handling = lr_handler.Learning_Rate_Handler(len(training_dataloader), params)
-        self.threshold = 1
 
     def train(self):
         for epoch in range(self.start_epoch, self.params.n_epochs):
@@ -66,9 +66,13 @@ class Model_Trainer():
             print("Epoch finished in: ", time.time() - start, "\n\n\n")
 
             if (epoch + 1) % general_config.evaluation_step == 0:
-                self.evaluate(epoch)
+                val_dice, val_loss = self.evaluate(epoch)
+                train_dice = np.mean(self.train_statistics.get_dice())
+                train_loss = self.train_statistics.get_loss()
+                prints.update_tensorboard_graphs(self.writer, train_dice, train_loss,
+                                                 val_dice, val_loss, epoch + 1)
 
-    def evaluate(self, epoch):
+    def evaluate(self, epoch=0):
         print("Starting evaluation at epoch: ", epoch, "\n")
         self.model.eval()
         self.val_statistics.reset(epoch)
@@ -87,6 +91,7 @@ class Model_Trainer():
             self.update_stats()
             training_setup.save_model(epoch, self.model, self.optimizer, self.params, self.stats,
                                       self.dataset_name)
+        return val_dice, self.val_statistics.get_loss()
 
     def process_sample_train(self, image, mask):
         """

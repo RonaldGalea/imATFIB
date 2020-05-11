@@ -12,3 +12,4 @@
 *.json
 *.json
 general_config.py
+runs/

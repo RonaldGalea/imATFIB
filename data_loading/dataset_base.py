@@ -21,7 +21,7 @@ class MRI_Dataset(Dataset):
         self.dset_name = dset_name
         self.dset_type = dset_type
         self.paths = paths
-        self.seg_type = params.seg_type
+        self.seg_type = general_config.seg_type
         self.norm_type = params.norm_type
         self.params = params
         self.augmentor = data_augmentation.Augmentor(params)
@@ -40,7 +40,7 @@ class MRI_Dataset(Dataset):
 
     def visualize_dataset_samples(self):
         for image, mask in zip(self.images, self.masks):
-            if len(image.shape == 3):
+            if len(image.shape) == 3:
                 visualization.visualize_img_mask_pair(image, mask)
             else:
                 visualization.visualize_img_mask_pair_2d(image, mask)

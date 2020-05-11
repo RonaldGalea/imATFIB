@@ -41,7 +41,8 @@ class Model_Statistics():
         print("Loss: ", self.loss_value / self.batch_count, "\n")
         if self.model is not None:
             prints.gradient_weight_check(self.model)
-        print("Time taken for past batches: ", current_time - self.start, "\n\n")
+        n_samples = self.print_step * self.params.batch_size
+        print("Time taken for past ", n_samples, " samples: ", current_time - self.start, "\n\n")
         self.start = current_time
 
     def get_dice(self):

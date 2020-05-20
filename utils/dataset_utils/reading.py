@@ -1,10 +1,34 @@
 import numpy as np
 import nibabel as nib
 from pathlib import Path
-import constants
 from collections import namedtuple
 
+from utils.dataset_structuring import acdc, general
+import constants
+import general_config
+
+
 Info = namedtuple('Info', ['affine', 'header'])
+
+
+def get_train_val_paths(dataset_name, k_split):
+    """
+    This function splits the samples from the dataset directory in two sets: train and val,
+    creating two Dataset objects using them
+
+    For the ACDC dataset the split is fixed, exactly as done by Baumgarter et al.
+    For imogen and mmwhs, the split factor is controlled by k_split
+    """
+    if general_config.read_numpy:
+        dataset_name += '_npy'
+
+    dataset_dir = Path.cwd() / 'datasets' / dataset_name
+    if constants.acdc_root_dir in dataset_name:
+        split_dict = acdc.acdc_train_val_split(dataset_dir)
+    else:
+        split_dict = general.train_val_split(dataset_dir, k_split=k_split)
+
+    return split_dict
 
 
 def get_img_mask_pair(image_path, numpy=False, dset_name=constants.acdc_root_dir,

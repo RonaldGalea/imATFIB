@@ -39,7 +39,7 @@ class Model_Trainer():
         # weight = torch.tensor([0.05, 0.95]).to(general_config.device)
         self.loss_function = torch.nn.NLLLoss(weight=None, reduction='mean')
         self.optimizer = optimizer
-        self.lr_handling = lr_handler.Learning_Rate_Handler(len(training_dataloader), params)
+        self.lr_handling = training_setup.lr_decay_setup(len(training_dataloader), params)
 
     def train(self):
         for epoch in range(self.start_epoch, self.params.n_epochs):
@@ -48,7 +48,6 @@ class Model_Trainer():
 
             self.model.train()
             self.train_statistics.reset(epoch)
-            self.lr_handling.reset_batch_count()
             for batch_nr, (image, mask) in enumerate(self.training_dataloader):
                 image, mask = image.to(general_config.device), mask.to(general_config.device)
                 loss_value, dice = self.process_sample_train(image, mask)
@@ -58,7 +57,7 @@ class Model_Trainer():
             print("--------------------------------------------------------------")
             print("Base learning rate vs current learning rate: ",
                   self.params.learning_rate,
-                  self.params.learning_rate * self.lr_handling.poly_decay, "\n")
+                  self.lr_handling.get_current_lr(), "\n")
 
             print("Final training results: ")
             self.train_statistics.print_batches_statistics()
@@ -77,9 +76,9 @@ class Model_Trainer():
         self.model.eval()
         self.val_statistics.reset(epoch)
         with torch.no_grad():
-            for batch_nr, (image, mask) in enumerate(self.validation_dataloader):
+            for batch_nr, (image, mask, r_info) in enumerate(self.validation_dataloader):
                 image, mask = image.to(general_config.device), mask.to(general_config.device)
-                loss_value, dice = self.process_sample_val(image, mask)
+                loss_value, dice = self.process_sample_val(image, mask, r_info)
                 self.val_statistics.update(loss_value, dice)
 
         print("Final validation results: ")
@@ -111,11 +110,12 @@ class Model_Trainer():
         dice, _, _ = training_processing.compute_dice(prediction, mask)
         return loss.item(), dice
 
-    def process_sample_val(self, volume, mask):
+    def process_sample_val(self, volume, mask, r_info):
         """
         Processes volume slice by slice, upsamples output to original shape, computes metrics
         """
-        processed_volume = training_processing.process_volume(self.model, volume, mask)
+        processed_volume = training_processing.process_volume(self.model, volume, mask,
+                                                              r_info, self.params)
         loss = self.loss_function(processed_volume, mask)
         dice, _, _ = training_processing.compute_dice(processed_volume, mask)
         return loss.item(), dice

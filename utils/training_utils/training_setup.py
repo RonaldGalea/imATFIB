@@ -5,6 +5,7 @@ import general_config
 import constants
 from data_loading import create_datasets, create_dataloaders
 from models import _2D_Unet, deeplabv3_plus
+from training import lr_handler
 
 
 def model_setup(dset_name, params):
@@ -65,6 +66,14 @@ def save_model(epoch, model, optimizer, params, stats, dset_name):
     }, constants.model_path.format(dset_name, params.model_id))
     stats.save(constants.stats_path.format(dset_name, params.model_id))
     print("Model saved successfully!")
+
+
+def lr_decay_setup(loader_size, params):
+    if params.lr_decay == constants.divide_decay:
+        lr_handling = lr_handler.Learning_Rate_Handler_Divide(loader_size, params)
+    elif params.lr_decay == constants.poly_decay:
+        lr_handling = lr_handler.Learning_Rate_Handler_Poly(loader_size, params)
+    return lr_handling
 
 
 def plain_adam(model, params):

@@ -14,6 +14,7 @@ class DeepLabV3_plus(nn.Module):
 
         self.low_res_feature_conv = mobilenetv2.ConvBNReLU(in_planes=320, out_planes=256,
                                                            kernel_size=1, bias=False)
+        # maybe change to the non expanded concat
         self.high_res_feature_conv = mobilenetv2.ConvBNReLU(in_planes=144, out_planes=48,
                                                             kernel_size=1, bias=False)
         self.classifier = nn.Sequential(

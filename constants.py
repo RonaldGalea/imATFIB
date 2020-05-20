@@ -23,3 +23,10 @@ unet = "2D_Unet"
 deeplab = "DeepLabV3_plus"
 
 heart = ["LV", "RV", "MYO"]
+
+divide_decay = "divide"
+poly_decay = "poly"
+
+no_roi_extraction = "no_roi"
+relative_roi_extraction = "relative_roi"
+global_roi_extraction = "global_roi"

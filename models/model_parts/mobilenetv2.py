@@ -166,11 +166,11 @@ class MobileNetV2(nn.Module):
     def _forward(self, x):
         for idx, layer in enumerate(self.features):
             # want to get expansion of layer 5, os=4
-            if idx == 3:
+            if idx == 4:
                 res_connect = x
                 for i, elem in enumerate(layer.conv):
                     x = elem(x)
-                    if i == 1:
+                    if i == 0:
                         inter = x
                 if layer.use_res_connect:
                     x += res_connect

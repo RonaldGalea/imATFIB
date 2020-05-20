@@ -1,6 +1,7 @@
 import numpy as np
 import argparse
 import torch
+import cv2
 from torch.utils.tensorboard import SummaryWriter
 try:
     from apex import amp
@@ -15,6 +16,7 @@ from training import train
 from utils.dataset_utils import data_normalization
 from utils.params import Params
 from utils.training_utils import prints, training_processing, training_setup
+from utils.ROI_crop import roi_crop
 from utils import visualization
 
 
@@ -23,7 +25,7 @@ def main():
     parser.add_argument('-dataset_name', dest="dataset_name",
                         help='mmwhs/imatfib-whs/ACDC_training', default=constants.imatfib_root_dir)
     parser.add_argument('-experiment_name', dest="experiment_name",
-                        help='experiment root folder', default=constants.deeplab)
+                        help='experiment root folder', default=constants.unet)
     parser.add_argument('-load_model', dest="load_model", type=bool,
                         help='lodel model weights and optimizer at specified experiment',
                         default=False)
@@ -32,7 +34,7 @@ def main():
                         default=True)
     parser.add_argument('-evaluate_model', dest="evaluate_model", type=bool,
                         help='evaluates model, load_model should be true when this is true',
-                        default=False)
+                        default=True)
     parser.add_argument('-view_results', dest="view_results", type=bool,
                         help='visualize model results on the validation set',
                         default=False)
@@ -41,6 +43,9 @@ def main():
                         default=False)
     parser.add_argument('-compute_dset_mean_std', dest="compute_dset_mean_std", type=bool,
                         help='computes the mean and std of the dataset, should then set corresponding values in general_config',
+                        default=False)
+    parser.add_argument('-compute_dset_gt_bounds', dest="compute_dset_gt_bounds", type=bool,
+                        help='computes bounds of the labeled area of the dataset',
                         default=False)
 
     args = parser.parse_args(args=[])
@@ -69,7 +74,8 @@ def main():
             )
     prints.print_trained_parameters_count(model, optimizer)
 
-    writer = SummaryWriter(filename_suffix=params.model_id)
+    experiment_info = args.experiment_name + "/" + args.dataset_name + str(params.roi_crop) + str(params.default_width)
+    writer = SummaryWriter(log_dir="runs/"+experiment_info, filename_suffix=params.model_id)
     model_trainer = train.Model_Trainer(model=model, training_dataloader=training_dataloader,
                                         validation_dataloader=validation_dataloader,
                                         optimizer=optimizer, params=params, stats=stats,
@@ -84,14 +90,23 @@ def main():
     if args.view_results:
         model.eval()
         with torch.no_grad():
-            for volume, mask in validation_dataloader:
-                print("In main: ", volume.shape, torch.mean(volume), torch.std(volume))
+            for volume, mask, r_info in validation_dataloader:
+                print("In main: ", volume.shape, mask.shape, torch.mean(volume), torch.std(volume))
                 volume, mask = volume.to(general_config.device), mask.to(general_config.device)
-                processed_volume = training_processing.process_volume(model, volume, mask)
+                processed_volume = training_processing.process_volume(model, volume, mask, r_info)
                 dice, concrete_volume, mask = training_processing.compute_dice(processed_volume,
                                                                                mask)
-                visualization.visualize_img_mask_pair(np.transpose(concrete_volume, (1, 2, 0)),
-                                                      np.transpose(mask, (1, 2, 0)))
+
+                volume = volume.cpu().numpy()
+                for img_slice, pred_slice, mask_slice, raw_slice in zip(volume, concrete_volume, mask):
+                    print("Input shape: ", img_slice.shape)
+                    visualization.show_image2d(img_slice, "input", unnorm=True)
+                    print("Pred shape: ", pred_slice.shape)
+                    visualization.show_image2d(pred_slice, "pred")
+                    print("Label shape: ", mask_slice.shape)
+                    visualization.show_image2d(mask_slice, "label")
+                    cv2.waitKey(0)
+                cv2.destroyAllWindows()
                 print(dice)
 
     if args.inspect_train_results:
@@ -101,16 +116,29 @@ def main():
                 print("In main: ", image.shape)
                 image, mask = image.to(general_config.device), mask.to(general_config.device)
                 prediction = model(image)
-                dice, concrete_volume, mask = training_processing.compute_dice(prediction,
-                                                                               mask)
-                visualization.visualize_img_mask_pair(np.transpose(concrete_volume, (1, 2, 0)),
-                                                      np.transpose(mask, (1, 2, 0)))
+                dice, prediction, mask = training_processing.compute_dice(prediction,
+                                                                          mask)
+                image = image.cpu().numpy()
+                for img_slice, pred_slice, mask_slice in zip(image, prediction, mask):
+                    img_slice = img_slice.squeeze(0)
+                    print("Input shape: ", img_slice.shape)
+                    visualization.show_image2d(img_slice, "input")
+                    print("Pred shape: ", pred_slice.shape)
+                    visualization.show_image2d(pred_slice, "pred")
+                    print("Label shape: ", mask_slice.shape)
+                    visualization.show_image2d(mask_slice, "label")
+                    cv2.waitKey(0)
+                cv2.destroyAllWindows()
+
                 print(dice)
 
     if args.compute_dset_mean_std:
         images = training_dataloader.dataset.get_images()
         mean, std = data_normalization.per_dataset_norm(images)
         print("Dataset mean and standard deviation: ", mean, std)
+
+    if args.compute_dset_gt_bounds:
+        roi_crop.get_dataset_gt_bounds(args.dataset_name, params)
 
 
 def validate_args(args):

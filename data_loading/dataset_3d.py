@@ -2,6 +2,7 @@ import torch
 import numpy as np
 
 import general_config
+import constants
 from data_loading import dataset_base
 from utils.dataset_utils import reading
 
@@ -28,7 +29,11 @@ class MRI_Dataset_3d(dataset_base.MRI_Dataset):
         image, mask = self.images[idx], self.masks[idx]
         # D x H x W
         image, mask = np.transpose(image, (2, 0, 1)), np.transpose(mask, (2, 0, 1))
-        image, mask = self.augmentor.resize_volume_HW(image, mask)
+        image, _ = self.augmentor.resize_volume_HW(image, mask)
+
+        reconstruction_info = None
+        if self.params.roi_crop != constants.no_roi_extraction:
+            image, reconstruction_info = self.augmentor.extract_ROI_3d(image, mask)
 
         # torch tensors
         image = torch.from_numpy(image)
@@ -45,7 +50,7 @@ class MRI_Dataset_3d(dataset_base.MRI_Dataset):
 
         mask = mask.to(torch.int64)
 
-        return image, mask
+        return image, mask, reconstruction_info
 
     def load_everything_in_memory(self):
         """

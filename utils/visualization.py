@@ -10,7 +10,7 @@ height, width, matplot = general_config.height, general_config.width, general_co
 max_plot_nr, exist_label = general_config.max_plot_nr, general_config.exist_label
 
 
-def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask'):
+def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask', use_orig_res=False):
     """
     Args:
     image - ndarray: HxW image
@@ -19,10 +19,11 @@ def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask'):
     Return:
     """
     print("In visualization, original shape ", image.shape)
-    resize = Resize(height=height, width=width, interpolation=cv2.INTER_CUBIC)
-    augmented = resize(image=image, mask=mask)
-    image = augmented['image']
-    mask = augmented['mask']
+    if not use_orig_res:
+        resize = Resize(height=height, width=width, interpolation=cv2.INTER_CUBIC)
+        augmented = resize(image=image, mask=mask)
+        image = augmented['image']
+        mask = augmented['mask']
 
     if matplot:
         show_images([image, mask], 4, ['image', 'mask'])
@@ -33,7 +34,7 @@ def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask'):
         cv2.imshow(img_name, image)
         cv2.imshow(mask_name, mask)
         cv2.waitKey(0)
-        cv2.destroyAllWindows()
+    # cv2.destroyAllWindows()
 
 
 def visualize_img_mask_pair(image_3d, mask_3d):
@@ -104,3 +105,14 @@ def show_images(images, cols=1, titles=None):
     fig.set_size_inches(np.array(fig.get_size_inches()) * n_images)
     plt.tight_layout(pad=20)
     plt.show()
+
+
+def show_image2d(image, img_name="img", box_coords=None, unnorm=False):
+    if unnorm:
+        image = (image * general_config.dataset_std) + general_config.dataset_mean
+    image = (image * (255/(image.max()+1))).astype(np.uint8)
+    print("IN visu: ", type(image), image.shape, image.dtype)
+    if box_coords:
+        (x1, y1), (x2, y2) = box_coords
+        image = cv2.rectangle(image, (x1, y1), (x2, y2), 255, 1)
+    cv2.imshow(img_name, image)

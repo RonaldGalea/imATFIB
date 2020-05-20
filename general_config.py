@@ -14,7 +14,7 @@ statistics_print_step - int: print statistics every len(dataset) / statistics_pr
 visualize_dataset - bool: visually inspect image/mask before training starts
 """
 
-
+# non training
 read_numpy = False
 height, width = 400, 400
 matplot = False
@@ -23,12 +23,19 @@ max_plot_nr = 8
 evaluation_step = 5
 statistics_print_step = 3
 visualize_dataset = False
+
+# training related
 use_amp = False
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 dataset_mean = 56.878749106586845
 dataset_std = 139.08557576261646
 seg_type = "whole-heart"
-# device = "cpu"
+
+# computed for 256x256 default height
+x_roi_max = 251
+x_roi_min = 15
+y_roi_max = 195
+y_roi_min = 62
 
 
 """

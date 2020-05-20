@@ -1,6 +1,7 @@
 import torch
 
 import general_config
+import constants
 from data_loading import dataset_base
 from utils.dataset_utils import reading
 from utils import visualization
@@ -49,15 +50,18 @@ class MRI_Dataset_2d(dataset_base.MRI_Dataset):
             image, mask = self.images[idx], self.masks[idx]
 
             # print("Before", image.shape, mask.shape, type(image), type(mask))
-            # visualization.visualize_img_mask_pair_2d(image, mask)
+            # visualization.visualize_img_mask_pair_2d(image, mask, use_orig_res=True)
+
+            image, mask = self.augmentor.resize_slice_HW(image, mask)
+            if self.params.roi_crop != constants.no_roi_extraction:
+                image, _ = self.augmentor.extract_ROI(image, mask)
+                mask, _ = self.augmentor.extract_ROI(mask, mask)
 
             if self.params.data_augmentation:
                 image, mask = self.augmentor.augment_data(image, mask)
-            else:
-                image, mask = self.augmentor.resize_slice_HW(image, mask)
 
             # print("After", image.shape, mask.shape, type(image), type(mask))
-            # visualization.visualize_img_mask_pair_2d(image, mask, "after_img", "after_mask")
+            # visualization.visualize_img_mask_pair_2d(image, mask, "after_img", "after_mask", use_orig_res=True)
 
             # torch tensors
             image = torch.from_numpy(image)

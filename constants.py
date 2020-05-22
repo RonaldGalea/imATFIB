@@ -21,8 +21,9 @@ model_path = "experiments/{}/{}/model_checkpoint.pt"
 
 unet = "2D_Unet"
 deeplab = "DeepLabV3_plus"
+resnext_deeplab = "ResNeXt_DeepLabV3_plus"
 
-heart = ["LV", "RV", "MYO"]
+heart = ["LV", "RV", "Myo"]
 
 divide_decay = "divide"
 poly_decay = "poly"

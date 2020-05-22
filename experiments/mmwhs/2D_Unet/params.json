@@ -1,6 +1,6 @@
 {
 "model_id": "2D_Unet",
-"model_version": "baseline",
+"dataset": "mmwhs",
 
 "learning_rate": 1e-2,
 "batch_size": 8,

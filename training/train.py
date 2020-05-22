@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import time
-
+from torch.utils.tensorboard import SummaryWriter
 try:
     from apex import amp
     amp_available = True
@@ -20,7 +20,7 @@ class Model_Trainer():
     """
 
     def __init__(self, model, training_dataloader, validation_dataloader, optimizer, params, stats,
-                 dataset_name, writer, start_epoch=0):
+                 dataset_name, start_epoch=0, experiment_info="no_info"):
         self.model = model
         self.training_dataloader = training_dataloader
         self.validation_dataloader = validation_dataloader
@@ -32,7 +32,6 @@ class Model_Trainer():
         self.val_statistics = model_statistics.Model_Statistics(len(validation_dataloader),
                                                                 params, self.model.n_classes - 1,
                                                                 'val')
-        self.writer = writer
         self.start_epoch = start_epoch
         self.dataset_name = dataset_name
 
@@ -40,6 +39,8 @@ class Model_Trainer():
         self.loss_function = torch.nn.NLLLoss(weight=None, reduction='mean')
         self.optimizer = optimizer
         self.lr_handling = training_setup.lr_decay_setup(len(training_dataloader), params)
+
+        self.experiment_info = experiment_info
 
     def train(self):
         for epoch in range(self.start_epoch, self.params.n_epochs):
@@ -65,6 +66,10 @@ class Model_Trainer():
             print("Epoch finished in: ", time.time() - start, "\n\n\n")
 
             if (epoch + 1) % general_config.evaluation_step == 0 or epoch == 0:
+                # init writer just as model is actually save to stop spamming empty stuff
+                if epoch == 0:
+                    self.writer = SummaryWriter(log_dir="runs/"+self.experiment_info,
+                                                filename_suffix=self.params.model_id)
                 val_dice, val_loss = self.evaluate(epoch)
                 train_dice = np.mean(self.train_statistics.get_dice())
                 train_loss = self.train_statistics.get_loss()

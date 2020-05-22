@@ -1,0 +1,23 @@
+{
+"model_id": "ResNeXt_DeepLabV3_plus",
+"dataset": "imatfib-whs",
+
+"learning_rate": 0.001,
+"batch_size": 12,
+"n_epochs": 100,
+"default_height": 224,
+"default_width": 224,
+"roi_height": 128,
+"roi_width": 224,
+"k_split": 5,
+"norm_type": "per_dataset",
+"data_augmentation": "no_aug",
+"optimizer": "adam",
+"weight_decay": 0.0001,
+"use_aspp": false,
+"lr_decay": "divide",
+"first_decay": 60,
+"second_decay": 90,
+"roi_crop": "no_roi",
+"replace_stride": [false, false, true]
+}

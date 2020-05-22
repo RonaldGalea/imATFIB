@@ -1,0 +1,22 @@
+{
+"model_id": "DeepLabV3_plus",
+"dataset": "imatfib-whs",
+
+"learning_rate": 0.01,
+"batch_size": 16,
+"n_epochs": 100,
+"default_height": 512,
+"default_width": 512,
+"roi_height": 256,
+"roi_width": 448,
+"k_split": 5,
+"norm_type": "per_dataset",
+"data_augmentation": "no_aug",
+"optimizer": "adam",
+"weight_decay": 0.0001,
+"use_aspp": false,
+"lr_decay": "divide",
+"first_decay": 60,
+"second_decay": 90,
+"roi_crop": "relative_roi"
+}

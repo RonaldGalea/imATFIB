@@ -1,5 +1,6 @@
 {
 "model_id": "2D_Unet",
+"dataset": "imatfib-whs",
 
 "learning_rate": 1e-3,
 "batch_size": 12,

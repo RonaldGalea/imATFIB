@@ -2,7 +2,6 @@ import numpy as np
 import argparse
 import torch
 import cv2
-from torch.utils.tensorboard import SummaryWriter
 try:
     from apex import amp
     amp_available = True
@@ -25,7 +24,7 @@ def main():
     parser.add_argument('-dataset_name', dest="dataset_name",
                         help='mmwhs/imatfib-whs/ACDC_training', default=constants.imatfib_root_dir)
     parser.add_argument('-experiment_name', dest="experiment_name",
-                        help='experiment root folder', default=constants.deeplab)
+                        help='experiment root folder', default=constants.resnext_deeplab)
     parser.add_argument('-load_model', dest="load_model", type=bool,
                         help='lodel model weights and optimizer at specified experiment',
                         default=False)
@@ -76,15 +75,12 @@ def main():
 
     rand_id = randint(0, 10000)
     experiment_info = args.experiment_name + "/" + args.dataset_name + "_" + str(params.n_epochs) + "_" + str(params.data_augmentation) + "_" + str(params.roi_crop) + "+" + str(params.default_width) + "_" + str(rand_id)
-    writer = SummaryWriter(log_dir="runs/"+experiment_info, filename_suffix=params.model_id)
-    # !!!!!!!move writer definition in self.train of model trainer to stop spam
-
 
     model_trainer = train.Model_Trainer(model=model, training_dataloader=training_dataloader,
                                         validation_dataloader=validation_dataloader,
                                         optimizer=optimizer, params=params, stats=stats,
                                         start_epoch=start_epoch, dataset_name=args.dataset_name,
-                                        writer=writer)
+                                        experiment_info=experiment_info)
     if args.train_model:
         model_trainer.train()
 

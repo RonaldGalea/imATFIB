@@ -29,31 +29,4 @@ visualize_dataset = False
 use_amp = False
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-# imatfib
-# dataset_mean = 56.878749106586845
-# dataset_std = 139.08557576261646
-
-# acdc
-dataset_mean = 69.52275548950034
-dataset_std = 90.27520888722917
-
 seg_type = constants.whole_heart_seg
-
-# imatfib global roi bounds computed for 256x256 default height
-x_roi_max = 251
-x_roi_min = 15
-y_roi_max = 195
-y_roi_min = 62
-
-# imatfib global roi bounds computed for 512x512 default height
-# x_roi_max = 503
-# x_roi_min = 30
-# y_roi_max = 391
-# y_roi_min = 124
-
-
-
-"""
-Imatfib dset mean and std
-56.878749106586845 139.08557576261646
-"""

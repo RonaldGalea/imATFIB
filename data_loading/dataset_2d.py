@@ -50,15 +50,15 @@ class MRI_Dataset_2d(dataset_base.MRI_Dataset):
         for idx in batched_indices:
             image, mask = self.images[idx], self.masks[idx]
 
-            print("Before", image.shape, mask.shape, type(image), type(mask))
-            visualization.visualize_img_mask_pair_2d(image, mask, use_orig_res=True)
+            # print("Before", image.shape, mask.shape, type(image), type(mask))
+            # visualization.visualize_img_mask_pair_2d(image, mask, use_orig_res=True)
 
             image, mask = self.augmentor.prepare_data_train(image, mask)
             # print(image.shape)
 
-            print("After", image.shape, mask.shape, type(image), type(mask))
-            visualization.visualize_img_mask_pair_2d(image, mask, "after_img", "after_mask", use_orig_res=True)
-            cv2.destroyAllWindows()
+            # print("After", image.shape, mask.shape, type(image), type(mask))
+            # visualization.visualize_img_mask_pair_2d(image, mask, "after_img", "after_mask", use_orig_res=True)
+            # cv2.destroyAllWindows()
 
             # torch tensors
             image = torch.from_numpy(image)

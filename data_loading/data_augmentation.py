@@ -18,6 +18,7 @@ import constants
 import general_config
 from utils.ROI_crop import roi_crop
 from utils import visualization
+from experiments import general_dataset_settings
 
 
 Reconstruction_Info = namedtuple('Reconstruction_Info', ['orig_roi', 'orig_pred'])
@@ -83,7 +84,7 @@ class Augmentor():
         image: torch.tensor (1 H W)
         """
         if self.params.norm_type == constants.per_dataset:
-            image = F.normalize(image, [general_config.dataset_mean], [general_config.dataset_std])
+            image = F.normalize(image, [self.dataset_mean], [self.dataset_std])
         elif self.params.norm_type == constants.per_slice:
             image = F.normalize(image, [torch.mean(image)], [torch.std(image)])
         return image
@@ -101,8 +102,8 @@ class Augmentor():
         input resolution of the model
         """
         if self.params.roi_crop == constants.global_roi_extraction:
-            x_max, x_min = general_config.x_roi_max, general_config.x_roi_min
-            y_max, y_min = general_config.y_roi_max, general_config.y_roi_min
+            x_max, x_min = self.x_roi_max, self.x_roi_min
+            y_max, y_min = self.y_roi_max, self.y_roi_min
         else:
             x_max, x_min, y_max, y_min = roi_crop.get_mask_bounds(mask, self.params)
             x_max, x_min, y_max, y_min = self.get_minimum_size(x_max, x_min, y_max, y_min)
@@ -191,3 +192,19 @@ class Augmentor():
             raise ValueError("Heavy augmentation not supported yet")
             # starting_aug.extend(heavy_aug)
         self.aug = Compose(starting_aug)
+
+        if self.params.dataset == constants.imatfib_root_dir:
+            self.dataset_mean = general_dataset_settings.imatfib_dataset_mean
+            self.dataset_std = general_dataset_settings.imatfib_dataset_std
+
+            self.x_roi_max = general_dataset_settings.imatfib_x_roi_max
+            self.x_roi_min = general_dataset_settings.imatfib_x_roi_min
+            self.y_roi_max = general_dataset_settings.imatfib_y_roi_max
+            self.y_roi_min = general_dataset_settings.imatfib_y_roi_min
+
+        elif self.params.dataset == constants.acdc_root_dir:
+            self.dataset_mean = general_dataset_settings.acdc_dataset_mean
+            self.dataset_std = general_dataset_settings.acdc_dataset_std
+
+        else:
+            raise NotImplementedError("Haven't gotten to mmwhs yet..")

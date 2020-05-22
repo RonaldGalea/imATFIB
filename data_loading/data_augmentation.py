@@ -9,6 +9,7 @@ from albumentations import (
     ElasticTransform,
     RandomGamma,
     Resize,
+    RandomResizedCrop,
     Rotate
 )
 import torchvision.transforms.functional as F
@@ -24,19 +25,57 @@ Reconstruction_Info = namedtuple('Reconstruction_Info', ['orig_roi', 'orig_pred'
 
 class Augmentor():
     """
-    Handles data augmentation
+    Handles data preprocessing and augmentation
     """
+
     def __init__(self, params):
         self.params = params
-        self.resize = Resize(height=params.default_height, width=params.default_width,
-                             interpolation=params.interpolation)
-        self.aug = Compose([
-            Rotate(limit=15),
-            HorizontalFlip(p=0.05)])
+        self.plain_resize = Resize(height=params.default_height, width=params.default_width)
+        self.random_crop_resize = RandomResizedCrop(height=params.default_height,
+                                                    width=params.default_width,
+                                                    scale=(0.25, 1.0), ratio=(0.9, 1.1))
+        self.roi_resize = Resize(height=params.roi_height, width=params.roi_width)
+        self.roi_random_crop_resize = RandomResizedCrop(height=params.roi_height,
+                                                        width=params.roi_width,
+                                                        scale=(0.7, 1.0), ratio=(0.9, 1.1))
+        self.initialize_elements()
 
-    def augment_data(self, image, mask):
-        augmented = self.aug(image=image, mask=mask)
-        return augmented['image'], augmented['mask']
+    def prepare_data_train(self, image, mask):
+        """
+        1. get the data to the defaul size either by simple rescaling or random resized crop
+        """
+        image, mask = self.resizer(image=image, mask=mask).values()
+        # image, mask = self.plain_resize(image=image, mask=mask).values()
+
+        # extract roi
+        if self.params.roi_crop != constants.no_roi_extraction:
+            image, _ = self.extract_ROI(image, mask)
+            mask, _ = self.extract_ROI(mask, mask)
+
+        # apply augmentation, efficiently only on the smaller roi if the case
+        if self.params.data_augmentation != constants.no_augmentation:
+            image, mask = self.aug(image=image, mask=mask).values()
+
+        # if roi was used, interpolate to roi size
+        if self.params.roi_crop != constants.no_roi_extraction:
+            if self.params.data_augmentation != constants.no_augmentation:
+                # image, mask = self.roi_random_crop_resize(image=image, mask=mask).values()
+                # i originally intended to use random resized crop, but it just performs bad, so for now stays commented
+                image, mask = self.roi_resize(image=image, mask=mask).values()
+            else:
+                image, mask = self.roi_resize(image=image, mask=mask).values()
+
+        return image, mask
+
+    def prepare_data_val(self, volume, mask):
+        # resize only input to default size, the resized mask is only used for relative roi
+        volume, resized_mask = self.resize_volume_HW(volume, mask)
+
+        reconstruction_info = None
+        if self.params.roi_crop != constants.no_roi_extraction:
+            volume, reconstruction_info = self.extract_ROI_3d(volume, resized_mask)
+
+        return volume, reconstruction_info
 
     def normalize(self, image):
         """
@@ -74,9 +113,6 @@ class Augmentor():
 
         roi = image[roi_vertical, roi_horizontal]
 
-        # resize roi to input res
-        roi = cv2.resize(roi, dsize=(self.params.roi_width, self.params.roi_height))
-
         return roi, (x_max, x_min, y_max, y_min)
 
     def extract_ROI_3d(self, volume, mask):
@@ -85,11 +121,14 @@ class Augmentor():
         for i, (image_slice, mask_slice) in enumerate(zip(volume, mask)):
             roi, orig_roi_info = self.extract_ROI(image_slice, mask_slice, i)
             orig_roi_infos.append(orig_roi_info)
-            # cv2.waitKey(0)
+
+            # resize roi to input res
+            roi = cv2.resize(roi, dsize=(self.params.roi_width, self.params.roi_height))
             roi_volume.append(roi)
         roi_volume = np.stack(roi_volume)
 
-        r_info = Reconstruction_Info(orig_roi_infos, (self.params.default_height, self.params.default_width))
+        r_info = Reconstruction_Info(
+            orig_roi_infos, (self.params.default_height, self.params.default_width))
 
         return roi_volume, r_info
 
@@ -102,33 +141,53 @@ class Augmentor():
         """
         resized_image, resized_mask = [], []
         for img_slice, mask_slice in zip(image, mask):
-            resized_img_slice, resized_mask_slice = self.resize_slice_HW(img_slice, mask_slice)
+            resized_img_slice, resized_mask_slice = self.plain_resize(image=img_slice,
+                                                                      mask=mask_slice).values()
             resized_image.append(resized_img_slice)
             resized_mask.append(resized_mask_slice)
 
         return np.array(resized_image), np.array(resized_mask)
 
-    def resize_slice_HW(self, image, mask):
-        image, mask = self.resize(image=image, mask=mask).values()
-
-        return image, mask
-
     def get_minimum_size(self, x_max, x_min, y_max, y_min):
         """
-        In the case of relative roi extraction, resize crop such that the minimum size is 64x64
+        In the case of relative roi extraction, resize crop such that the minimum size is
+        default height/width // 4
         """
-        if x_max - x_min + 1 < 64:
+        width = self.params.default_width
+        if x_max - x_min + 1 < width // 4:
             mid = (x_max + x_min) // 2
-            x_max = mid + 32
-            x_min = mid - 31
-        if x_min < 0 or x_max > self.params.default_width:
+            x_max = mid + width // 8
+            x_min = mid - (width // 8) - 1
+        if x_min < 0 or x_max > width:
+            print("Computed xmin xmax: ", x_min, x_max)
             raise ValueError("Can't use a symmetric formula here, implement something else...")
 
-        if y_max - y_min + 1 < 64:
+        height = self.params.default_height
+        if y_max - y_min + 1 < height // 4:
             mid = (y_max + y_min) // 2
-            y_max = mid + 32
-            y_min = mid - 31
-        if y_min < 0 or y_max > self.params.default_height:
+            y_max = mid + height // 8
+            y_min = mid - (height // 8) - 1
+        if y_min < 0 or y_max > height:
             raise ValueError("Can't use a symmetric formula here, implement something else...")
 
         return x_max, x_min, y_max, y_min
+
+    def initialize_elements(self):
+        # use random crop if not using roi extraction
+        if self.params.data_augmentation != constants.no_augmentation and self.params.roi_crop == constants.no_roi_extraction:
+            self.resizer = self.random_crop_resize
+        else:
+            self.resizer = self.plain_resize
+
+        starting_aug = [
+            Rotate(limit=15),
+            HorizontalFlip(p=0.5)]
+
+        heavy_aug = [
+            ElasticTransform(p=0.1)
+        ]
+
+        if self.params.data_augmentation == constants.heavy_augmentation:
+            raise ValueError("Heavy augmentation not supported yet")
+            # starting_aug.extend(heavy_aug)
+        self.aug = Compose(starting_aug)

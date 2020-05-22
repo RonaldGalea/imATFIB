@@ -26,7 +26,14 @@ heart = ["LV", "RV", "MYO"]
 
 divide_decay = "divide"
 poly_decay = "poly"
+lr_schedulers = [divide_decay, poly_decay]
 
 no_roi_extraction = "no_roi"
 relative_roi_extraction = "relative_roi"
 global_roi_extraction = "global_roi"
+roi_types = [no_roi_extraction, relative_roi_extraction, global_roi_extraction]
+
+no_augmentation = "no_aug"
+simple_augmentation = "simple"
+heavy_augmentation = "heavy"
+aug_types = [no_augmentation, simple_augmentation, heavy_augmentation]

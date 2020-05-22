@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 
 def show_training_info(params):
@@ -56,6 +57,6 @@ def gradient_weight_check(model):
 
 def update_tensorboard_graphs(writer, train_dice, train_loss, val_dice, val_loss, epoch):
     writer.add_scalar('Loss/train', train_loss, epoch)
-    writer.add_scalar('Dice/train', train_dice, epoch)
+    writer.add_scalar('Dice/train', np.mean(train_dice), epoch)
     writer.add_scalar('Loss/val', val_loss, epoch)
-    writer.add_scalar('Dice/val', val_dice, epoch)
+    writer.add_scalar('Dice/val', np.mean(val_dice), epoch)

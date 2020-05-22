@@ -26,7 +26,7 @@ def compute_dice(prediction, mask):
     return dice, prediction, mask
 
 
-def process_volume(model, volume, mask, r_info, params):
+def process_volume(model, volume, mask, r_info):
     """
     Args:
     model: nn.Module
@@ -47,7 +47,7 @@ def process_volume(model, volume, mask, r_info, params):
     processed_volume = torch.cat(processed_volume)
 
     if r_info:
-        processed_volume = roi_crop.reinsert_roi(processed_volume, r_info, params)
+        processed_volume = roi_crop.reinsert_roi(processed_volume, r_info)
     processed_volume = torch.nn.functional.interpolate(processed_volume, mask.shape[1:],
                                                        mode="bilinear")
     return processed_volume

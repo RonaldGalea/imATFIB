@@ -64,7 +64,7 @@ class Model_Trainer():
             print("--------------------------------------------------------------")
             print("Epoch finished in: ", time.time() - start, "\n\n\n")
 
-            if (epoch + 1) % general_config.evaluation_step == 0:
+            if (epoch + 1) % general_config.evaluation_step == 0 or epoch == 0:
                 val_dice, val_loss = self.evaluate(epoch)
                 train_dice = np.mean(self.train_statistics.get_dice())
                 train_loss = self.train_statistics.get_loss()
@@ -85,8 +85,8 @@ class Model_Trainer():
         self.val_statistics.print_batches_statistics()
         print("\n\n\n")
 
-        val_dice = self.val_statistics.get_dice()
-        if np.mean(val_dice) > self.stats.val:
+        val_dice = np.mean(self.val_statistics.get_dice())
+        if val_dice > self.stats.val:
             self.update_stats()
             training_setup.save_model(epoch, self.model, self.optimizer, self.params, self.stats,
                                       self.dataset_name)
@@ -108,6 +108,7 @@ class Model_Trainer():
         self.optimizer.step()
 
         dice, _, _ = training_processing.compute_dice(prediction, mask)
+
         return loss.item(), dice
 
     def process_sample_val(self, volume, mask, r_info):
@@ -115,7 +116,7 @@ class Model_Trainer():
         Processes volume slice by slice, upsamples output to original shape, computes metrics
         """
         processed_volume = training_processing.process_volume(self.model, volume, mask,
-                                                              r_info, self.params)
+                                                              r_info)
         loss = self.loss_function(processed_volume, mask)
         dice, _, _ = training_processing.compute_dice(processed_volume, mask)
         return loss.item(), dice

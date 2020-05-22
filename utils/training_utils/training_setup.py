@@ -23,6 +23,8 @@ def model_setup(dset_name, params):
     elif params.model_id == constants.deeplab:
         model = deeplabv3_plus.DeepLabV3_plus(n_channels=1,
                                               n_classes=n_classes, use_aspp=params.use_aspp)
+
+    print("Number of classes: ", n_classes)
     model.to(general_config.device)
     return model
 

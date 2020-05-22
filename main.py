@@ -8,7 +8,7 @@ try:
     amp_available = True
 except ImportError:
     print("Cannot import NVIDIA Apex...")
-
+from random import randint
 
 import general_config
 import constants
@@ -25,7 +25,7 @@ def main():
     parser.add_argument('-dataset_name', dest="dataset_name",
                         help='mmwhs/imatfib-whs/ACDC_training', default=constants.imatfib_root_dir)
     parser.add_argument('-experiment_name', dest="experiment_name",
-                        help='experiment root folder', default=constants.unet)
+                        help='experiment root folder', default=constants.deeplab)
     parser.add_argument('-load_model', dest="load_model", type=bool,
                         help='lodel model weights and optimizer at specified experiment',
                         default=False)
@@ -34,7 +34,7 @@ def main():
                         default=True)
     parser.add_argument('-evaluate_model', dest="evaluate_model", type=bool,
                         help='evaluates model, load_model should be true when this is true',
-                        default=True)
+                        default=False)
     parser.add_argument('-view_results', dest="view_results", type=bool,
                         help='visualize model results on the validation set',
                         default=False)
@@ -74,8 +74,12 @@ def main():
             )
     prints.print_trained_parameters_count(model, optimizer)
 
-    experiment_info = args.experiment_name + "/" + args.dataset_name + str(params.roi_crop) + str(params.default_width)
+    rand_id = randint(0, 10000)
+    experiment_info = args.experiment_name + "/" + args.dataset_name + "_" + str(params.n_epochs) + "_" + str(params.data_augmentation) + "_" + str(params.roi_crop) + "+" + str(params.default_width) + "_" + str(rand_id)
     writer = SummaryWriter(log_dir="runs/"+experiment_info, filename_suffix=params.model_id)
+    # !!!!!!!move writer definition in self.train of model trainer to stop spam
+
+
     model_trainer = train.Model_Trainer(model=model, training_dataloader=training_dataloader,
                                         validation_dataloader=validation_dataloader,
                                         optimizer=optimizer, params=params, stats=stats,
@@ -98,7 +102,7 @@ def main():
                                                                                mask)
 
                 volume = volume.cpu().numpy()
-                for img_slice, pred_slice, mask_slice, raw_slice in zip(volume, concrete_volume, mask):
+                for img_slice, pred_slice, mask_slice in zip(volume, concrete_volume, mask):
                     print("Input shape: ", img_slice.shape)
                     visualization.show_image2d(img_slice, "input", unnorm=True)
                     print("Pred shape: ", pred_slice.shape)
@@ -148,9 +152,18 @@ def validate_args(args):
 
 
 def validate_params(params):
-    valid_segs = [constants.whole_heart_seg, constants.multi_class_seg]
-    if general_config.seg_type not in valid_segs:
-        raise AssertionError('Invalid Segmentation type')
+    norm_type = params.norm_type
+    data_augmentation = params.data_augmentation
+    lr_decay = params.lr_decay
+    roi_crop = params.roi_crop
+    if norm_type not in constants.norm_types:
+        raise AssertionError("Params not ok..." + "norm_type")
+    if data_augmentation not in constants.aug_types:
+        raise AssertionError("Params not ok..." + "data_augmentation")
+    if lr_decay not in constants.lr_schedulers:
+        raise AssertionError("Params not ok..." + "lr_decay")
+    if roi_crop not in constants.roi_types:
+        raise AssertionError("Params not ok..." + "roi_crop")
 
 
 if __name__ == '__main__':

@@ -29,11 +29,8 @@ class MRI_Dataset_3d(dataset_base.MRI_Dataset):
         image, mask = self.images[idx], self.masks[idx]
         # D x H x W
         image, mask = np.transpose(image, (2, 0, 1)), np.transpose(mask, (2, 0, 1))
-        image, _ = self.augmentor.resize_volume_HW(image, mask)
 
-        reconstruction_info = None
-        if self.params.roi_crop != constants.no_roi_extraction:
-            image, reconstruction_info = self.augmentor.extract_ROI_3d(image, mask)
+        image, reconstruction_info = self.augmentor.prepare_data_val(image, mask)
 
         # torch tensors
         image = torch.from_numpy(image)

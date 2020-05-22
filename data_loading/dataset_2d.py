@@ -1,4 +1,5 @@
 import torch
+import cv2
 
 import general_config
 import constants
@@ -49,19 +50,15 @@ class MRI_Dataset_2d(dataset_base.MRI_Dataset):
         for idx in batched_indices:
             image, mask = self.images[idx], self.masks[idx]
 
-            # print("Before", image.shape, mask.shape, type(image), type(mask))
-            # visualization.visualize_img_mask_pair_2d(image, mask, use_orig_res=True)
+            print("Before", image.shape, mask.shape, type(image), type(mask))
+            visualization.visualize_img_mask_pair_2d(image, mask, use_orig_res=True)
 
-            image, mask = self.augmentor.resize_slice_HW(image, mask)
-            if self.params.roi_crop != constants.no_roi_extraction:
-                image, _ = self.augmentor.extract_ROI(image, mask)
-                mask, _ = self.augmentor.extract_ROI(mask, mask)
+            image, mask = self.augmentor.prepare_data_train(image, mask)
+            # print(image.shape)
 
-            if self.params.data_augmentation:
-                image, mask = self.augmentor.augment_data(image, mask)
-
-            # print("After", image.shape, mask.shape, type(image), type(mask))
-            # visualization.visualize_img_mask_pair_2d(image, mask, "after_img", "after_mask", use_orig_res=True)
+            print("After", image.shape, mask.shape, type(image), type(mask))
+            visualization.visualize_img_mask_pair_2d(image, mask, "after_img", "after_mask", use_orig_res=True)
+            cv2.destroyAllWindows()
 
             # torch tensors
             image = torch.from_numpy(image)

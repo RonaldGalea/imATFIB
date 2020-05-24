@@ -1,13 +1,87 @@
+import torch
 import numpy as np
 import cv2
 from albumentations import Resize
 import matplotlib.pyplot as plt
 
 import general_config
+import constants
+from utils.training_utils import training_processing
 
 
 height, width, matplot = general_config.height, general_config.width, general_config.matplot
 max_plot_nr, exist_label = general_config.max_plot_nr, general_config.exist_label
+
+
+def visualize_validation_dataset(dataloader, models, params, model_names, overlay="gt_over"):
+    """
+    Args:
+    dataloader: validation dataloader, has to return one volume at a time
+    models: list of nn.Module objects - trained models
+
+    This function provides visualization of the input, ground truth and model predictions
+    """
+    dataloader.dataset.visualization_mode = True
+    total = 0
+    for vol_idx, (volume, mask, r_infos, orig_volume) in enumerate(dataloader):
+
+        # process current volume by each model
+        final_preds, all_dices = [], []
+        for model in models:
+            volume, mask = volume.to(general_config.device), mask.to(general_config.device)
+            # process volume slice by slice so we can see dice per each one
+            dices, pred_slices = [], []
+            for slice_idx, (vol_slice, mask_slice) in enumerate(zip(volume, mask)):
+                # simulate bs = 1
+                vol_slice = vol_slice.unsqueeze(0)
+                mask_slice = mask_slice.unsqueeze(0)
+                # this has softmax channels, (cuda) tensor
+                if r_infos is not None:
+                    r_info = [r_infos[slice_idx]]
+                else:
+                    r_info = None
+                processed_volume = training_processing.process_volume(model, vol_slice, mask_slice,
+                                                                      params, r_info)
+                # this is final pred, cpu, np.uint8
+                slice_dice, final_slice, _ = training_processing.compute_dice(processed_volume,
+                                                                              mask_slice)
+                dices.append(slice_dice)
+                pred_slices.append(final_slice)
+
+            # save current model prediction and stats
+            pred_volume = np.concatenate(pred_slices)
+            final_preds.append(pred_volume)
+            all_dices.append(dices)
+
+        # having run all models, show results on the current volume
+        orig_volume = orig_volume.cpu().numpy()
+        orig_volume = np.transpose(orig_volume, (2, 0, 1))
+        # orig_volume = (orig_volume / 255).astype(np.float32)
+        mask = mask.cpu().numpy().astype(np.uint8)
+
+        for idx, (inp, msk) in enumerate(zip(orig_volume, mask)):
+            inp = inp.astype(np.float32)
+            msk = msk.astype(np.float32)
+            image_list = [inp, msk]
+            name_list = ["Input", "Mask"]
+            total += 1
+            save_id = "results/" + params.roi_crop + "/" + "_" + \
+                overlay + str(total) + "_" + str(idx) + "_" + str(vol_idx)
+
+            for pred, dice, model_name in zip(final_preds, all_dices, model_names):
+                if overlay == constants.results_overlay_inp:
+                    # base = inp + pred[idx]
+                    raise NotImplementedError
+                elif overlay == constants.results_overlay_gt:
+                    base = pred[idx]
+                image_list.append(base)
+                name_list.append(model_name)
+
+                # overlay prediction on ground truth, with different color
+                caption = model_name + " " + "{:.3f}".format(float(dice[idx]))
+                image_list.append(base + msk * 2)
+                name_list.append(caption)
+            show_images(image_list, cols=4, titles=name_list, save_id=save_id)
 
 
 def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask', use_orig_res=False):
@@ -46,13 +120,10 @@ def visualize_img_mask_pair(image_3d, mask_3d):
     """
     resize = Resize(height=height, width=width, interpolation=cv2.INTER_CUBIC)
     imgs_to_plot, titles = [], []
-    # print("In visualization, image_3d shape: ", image_3d.shape)
-    # print("In visualization, Unique elements in mask_3d: ", np.unique(mask_3d), "\n")
+    print("In visualization, image_3d shape: ", image_3d.shape)
+    print("In visualization, Unique elements in mask_3d: ", np.unique(mask_3d), "\n")
     for i in range(image_3d.shape[2]):
         if exist_label or (mask_3d[:, :, i].max() > 0):
-
-            # print("Max value of slice: ", image_3d[:, :, i].max())
-            # print("Unique elements in slice mask: ", np.unique(mask_3d[:, :, i]))
 
             current_img = image_3d[:, :, i]
             current_mask = mask_3d[:, :, i]
@@ -78,7 +149,7 @@ def visualize_img_mask_pair(image_3d, mask_3d):
     cv2.destroyAllWindows()
 
 
-def show_images(images, cols=1, titles=None):
+def show_images(images, cols=1, titles=None, save_id=None):
     """
     taken from https://gist.github.com/soply/f3eec2e79c165e39c9d540e916142ae1
     Display a list of images in a single figure with matplotlib.
@@ -102,9 +173,33 @@ def show_images(images, cols=1, titles=None):
         a = fig.add_subplot(np.ceil(n_images/float(cols)), cols, n + 1)
         plt.imshow(image)
         a.set_title(title)
-    fig.set_size_inches(np.array(fig.get_size_inches()) * n_images)
-    plt.tight_layout(pad=20)
-    plt.show()
+
+    # axes = fig.subplots(nrows=2, ncols=4)
+    #
+    # axes[0, 3].plot(color='y',
+    #                 label="Yellow - Intersection of prediction and ground truth")
+    # axes[1, 1].plot(color='g',
+    #                 label="Green - Ground truth missed by prediction")
+    # axes[1, 3].plot(color='b',
+    #                 label="Blue - Model prediction overshoot")
+    #
+    # lines = []
+    # for ax in fig.axes:
+    #     axLine, axLabel = ax.get_legend_handles_labels()
+    #     lines.extend(axLine)
+    # labels = ["Yellow - Intersection", "Green - Ground truth missed",
+    #           "Dark green - Prediction overshoot"]
+    # fig.legend(lines, labels, loc='upper right')
+
+    fig.set_figheight(10)
+    fig.set_figwidth(19)
+    plt.tight_layout()
+
+    if save_id:
+        plt.savefig(save_id, dpi=fig.dpi)
+    else:
+        plt.show()
+    plt.close()
 
 
 def show_image2d(image, img_name="img", box_coords=None, unnorm=False):

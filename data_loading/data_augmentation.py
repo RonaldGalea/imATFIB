@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import cv2
 from collections import namedtuple
-import random
 from albumentations import (
     HorizontalFlip,
     Compose,
@@ -10,18 +9,16 @@ from albumentations import (
     RandomGamma,
     Resize,
     RandomResizedCrop,
-    Rotate
+    Rotate,
+    GaussNoise,
+    GaussianBlur
 )
 import torchvision.transforms.functional as F
 
 import constants
-import general_config
 from utils.ROI_crop import roi_crop
-from utils import visualization
 from experiments import general_dataset_settings
-
-
-Reconstruction_Info = namedtuple('Reconstruction_Info', ['orig_roi', 'orig_pred'])
+from utils import visualization
 
 
 class Augmentor():
@@ -50,8 +47,9 @@ class Augmentor():
 
         # extract roi
         if self.params.roi_crop != constants.no_roi_extraction:
-            image, _ = self.extract_ROI(image, mask)
-            mask, _ = self.extract_ROI(mask, mask)
+            box_coords = self.compute_ROI_coords(mask)
+            image = self.extract_ROI(image, box_coords, type="image")
+            mask = self.extract_ROI(mask, box_coords, type="mask")
 
         # apply augmentation, efficiently only on the smaller roi if the case
         if self.params.data_augmentation != constants.no_augmentation:
@@ -89,11 +87,31 @@ class Augmentor():
             image = F.normalize(image, [torch.mean(image)], [torch.std(image)])
         return image
 
-    def extract_ROI(self, image, mask, idx=0):
+    def compute_ROI_coords(self, mask, validation=False):
+        """
+        mask: ndarray: 2D label image, used for extracting relativ roi coords
+        validation: bool: relatvie roi extraction differs
+
+        computes bounds of labelled area
+
+        returns: tuple of box coords
+        """
+        if self.params.roi_crop == constants.global_roi_extraction:
+            x_max, x_min = self.x_roi_max, self.x_roi_min
+            y_max, y_min = self.y_roi_max, self.y_roi_min
+        else:
+            x_max, x_min, y_max, y_min = roi_crop.get_mask_bounds(mask, self.params)
+            x_max, x_min, y_max, y_min = self.get_minimum_size(
+                x_max, x_min, y_max, y_min, validation)
+
+        return (x_max, x_min, y_max, y_min)
+
+    def extract_ROI(self, image, box_coords, type="mask"):
         """
         Args:
         image: ndarray: 2D sample image from which to extract roi
         mask: ndarray: 2D label image, used for extracting relativ roi coords
+        validation: bool: relatvie roi extraction differs
 
         to extract relative roi from mask (as needed when training), give the mask as both args
 
@@ -101,37 +119,35 @@ class Augmentor():
         The ROI might have varying size, so this function always interpolates it to the correct
         input resolution of the model
         """
-        if self.params.roi_crop == constants.global_roi_extraction:
-            x_max, x_min = self.x_roi_max, self.x_roi_min
-            y_max, y_min = self.y_roi_max, self.y_roi_min
-        else:
-            x_max, x_min, y_max, y_min = roi_crop.get_mask_bounds(mask, self.params)
-            x_max, x_min, y_max, y_min = self.get_minimum_size(x_max, x_min, y_max, y_min)
+        x_max, x_min, y_max, y_min = box_coords
 
         # extract the roi, relative or absolute
         roi_horizontal = slice(x_min, x_max+1)
         roi_vertical = slice(y_min, y_max+1)
 
+        # visualization.show_image2d(image, img_name=type + "_box",
+        #                            box_coords=((x_max, y_max), (x_min, y_min)))
+        # print("Coords for ", type, x_max, x_min, y_max, y_min)
+        # print(type, " shape: ", image.shape)
+
         roi = image[roi_vertical, roi_horizontal]
 
-        return roi, (x_max, x_min, y_max, y_min)
+        return roi
 
     def extract_ROI_3d(self, volume, mask):
         roi_volume = []
         orig_roi_infos = []
         for i, (image_slice, mask_slice) in enumerate(zip(volume, mask)):
-            roi, orig_roi_info = self.extract_ROI(image_slice, mask_slice, i)
-            orig_roi_infos.append(orig_roi_info)
+            box_coords = self.compute_ROI_coords(mask_slice, validation=True)
+            roi = self.extract_ROI(image_slice, box_coords)
+            orig_roi_infos.append(box_coords)
 
             # resize roi to input res
             roi = cv2.resize(roi, dsize=(self.params.roi_width, self.params.roi_height))
             roi_volume.append(roi)
         roi_volume = np.stack(roi_volume)
 
-        r_info = Reconstruction_Info(
-            orig_roi_infos, (self.params.default_height, self.params.default_width))
-
-        return roi_volume, r_info
+        return roi_volume, orig_roi_infos
 
     def resize_volume_HW(self, image, mask):
         """
@@ -149,26 +165,67 @@ class Augmentor():
 
         return np.array(resized_image), np.array(resized_mask)
 
-    def get_minimum_size(self, x_max, x_min, y_max, y_min):
+    def get_minimum_size(self, x_max, x_min, y_max, y_min, validation=False):
         """
         In the case of relative roi extraction, resize crop such that the minimum size is
         default height/width // 4
         """
+
+        # practically, region cut won't always be perfect, so add a perturbation value
+        if self.params.relative_roi_perturbation:
+            # print("Perturbing roi before: ", x_max, x_min, y_max, y_min)
+            perfect_roi_width, perfect_roi_height = x_max - x_min, y_max - y_min
+            width_perturb_limit = perfect_roi_width // 6
+            height_perturb_limit = perfect_roi_height // 6
+
+            # print("Validating? :", validation)
+            if not validation:
+                # perturb up to 33% of original size
+                x_min_perturb = np.random.randint(0, width_perturb_limit)
+                x_max_perturb = np.random.randint(0, width_perturb_limit)
+                y_max_perturb = np.random.randint(0, height_perturb_limit)
+                y_min_perturb = np.random.randint(0, height_perturb_limit)
+            else:
+                # if we're validating, add fixed perturbation to avoid a lucky eval
+                x_min_perturb = width_perturb_limit // 2
+                x_max_perturb = width_perturb_limit // 2
+                y_max_perturb = height_perturb_limit // 2
+                y_min_perturb = height_perturb_limit // 2
+
+            # print("Perturbation values: ", x_max_perturb,
+            #       x_min_perturb, y_max_perturb, y_min_perturb)
+
+            x_min -= x_min_perturb
+            x_max += x_max_perturb
+            y_min -= y_min_perturb
+            y_max += y_max_perturb
+
+            # print("Perturbing roi after: ", x_max, x_min, y_max, y_min)
+        # clamp values back to image range
         width = self.params.default_width
+        height = self.params.default_height
+
+        x_min = max(x_min, 0)
+        x_max = min(x_max, width - 1)
+        y_min = max(y_min, 0)
+        y_max = min(y_max, height - 1)
+
         if x_max - x_min + 1 < width // 4:
             mid = (x_max + x_min) // 2
             x_max = mid + width // 8
             x_min = mid - (width // 8) - 1
-        if x_min < 0 or x_max > width:
-            print("Computed xmin xmax: ", x_min, x_max)
-            raise ValueError("Can't use a symmetric formula here, implement something else...")
 
-        height = self.params.default_height
         if y_max - y_min + 1 < height // 4:
             mid = (y_max + y_min) // 2
             y_max = mid + height // 8
             y_min = mid - (height // 8) - 1
+
+        if x_min < 0 or x_max > width:
+            print("Computed xmin xmax: ", x_min, x_max)
+            raise ValueError("Can't use a symmetric formula here, implement something else...")
+
         if y_min < 0 or y_max > height:
+            print("Computed y_max, y_min: ", y_max, y_min)
             raise ValueError("Can't use a symmetric formula here, implement something else...")
 
         return x_max, x_min, y_max, y_min
@@ -185,12 +242,14 @@ class Augmentor():
             HorizontalFlip(p=0.5)]
 
         heavy_aug = [
-            ElasticTransform(p=0.1)
+            # RandomGamma(p=0.1),
+            ElasticTransform(p=0.1, alpha=120, sigma=120 * 0.05, alpha_affine=120 * 0.03),
+            GaussNoise(p=0.05),
+            GaussianBlur(p=0.05)
         ]
 
         if self.params.data_augmentation == constants.heavy_augmentation:
-            raise ValueError("Heavy augmentation not supported yet")
-            # starting_aug.extend(heavy_aug)
+            starting_aug.extend(heavy_aug)
         self.aug = Compose(starting_aug)
 
         if self.params.dataset == constants.imatfib_root_dir:
@@ -208,3 +267,5 @@ class Augmentor():
 
         else:
             raise NotImplementedError("Haven't gotten to mmwhs yet..")
+
+        print("Dataset mean and std: ", self.dataset_mean, self.dataset_std)

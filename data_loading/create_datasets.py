@@ -17,3 +17,11 @@ def train_val(dataset_name, params):
                                                    paths=split_dict['val'], params=params)
 
     return training_dataset, validation_dataset
+
+
+def create_val_set(dataset_name, params):
+    split_dict = reading.get_train_val_paths(dataset_name, params.k_split)
+
+    validation_dataset = dataset_3d.MRI_Dataset_3d(dset_name=dataset_name, dset_type='val',
+                                                   paths=split_dict['val'], params=params)
+    return validation_dataset

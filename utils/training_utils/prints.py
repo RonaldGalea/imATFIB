@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from random import randint
 
 
 def show_training_info(params):
@@ -14,11 +15,16 @@ def show_training_info(params):
     print("-------------------------------------------------------\n")
 
 
-def print_trained_parameters_count(model, optimizer):
+def print_trained_parameters_count(model, optimizer=None):
     print('Total number of parameters of model: ', sum(p.numel() for p in model.parameters()))
     print('Total number of trainable parameters of model: ',
           sum(p.numel() for p in model.parameters() if p.requires_grad), "\n")
 
+    if optimizer:
+        print_parameters_given_to_opt(optimizer)
+
+
+def print_parameters_given_to_opt(optimizer):
     print('Total number of parameters given to optimizer: ',
           sum(p.numel() for pg in optimizer.param_groups for p in pg['params']))
     print('Total number of trainable parameters given to optimizer: ',
@@ -60,3 +66,17 @@ def update_tensorboard_graphs(writer, train_dice, train_loss, val_dice, val_loss
     writer.add_scalar('Dice/train', np.mean(train_dice), epoch)
     writer.add_scalar('Loss/val', val_loss, epoch)
     writer.add_scalar('Dice/val', np.mean(val_dice), epoch)
+
+
+def create_tensorboard_name(args, params):
+    rand_id = randint(0, 10000)
+    dir = args.experiment_name + "/" + args.dataset_name + "/"
+    params_ = params.dict
+    suffix = ''
+    wanted_keys = ['learning_rate', 'batch_size', 'n_epochs', 'default_width', 'roi_width', 'data_augmentation', 'roi_crop']
+    for k, v in params_.items():
+        if k in wanted_keys:
+            suffix += str(v) + "_"
+    suffix += str(rand_id)
+    print("Experiment suffix: ", suffix)
+    return dir + suffix

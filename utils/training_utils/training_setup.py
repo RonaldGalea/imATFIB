@@ -48,6 +48,12 @@ def prepare_dataloaders(dset_name, params):
     return training_dataloader, validation_dataloader
 
 
+def prepare_val_loader(dset_name, params):
+    validation_dataset = create_datasets.create_val_set(dset_name, params)
+    validation_dataloader = create_dataloaders.get_validation_loader(validation_dataset, params)
+    return validation_dataloader
+
+
 def load_model(model, optimizer, params, dset_name):
     checkpoint = torch.load(constants.model_path.format(dset_name, params.model_id))
     model.load_state_dict(checkpoint['model_state_dict'])
@@ -57,6 +63,11 @@ def load_model(model, optimizer, params, dset_name):
     print('Model loaded successfully')
 
     return start_epoch
+
+
+def load_model_weights(model, params, dset_name):
+    checkpoint = torch.load(constants.model_path.format(dset_name, params.model_id))
+    model.load_state_dict(checkpoint['model_state_dict'])
 
 
 def save_model(epoch, model, optimizer, params, stats, dset_name):

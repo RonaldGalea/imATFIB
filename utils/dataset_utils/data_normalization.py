@@ -2,6 +2,7 @@ import numpy as np
 import math
 
 import constants
+from experiments import general_dataset_settings
 """
 - % of images with existing label (not just background) (have to restructure dset)
 - mean and std of images - can be done rn (by the looks i must be very careful with normalization)
@@ -13,8 +14,18 @@ def normalize(images, norm_type, scale_0_1=True):
     assert norm_type in constants.norm_types
     if norm_type == constants.per_slice:
         per_slice_norm(images)
-    elif norm_type == constants.per_volume:
-        per_volume_norm(images)
+
+
+def unnormalize(image, params):
+    if params.dataset == constants.imatfib_root_dir:
+        mean = general_dataset_settings.imatfib_dataset_mean
+        std = general_dataset_settings.imatfib_dataset_std
+    elif params.dataset == constants.acdc_root_dir:
+        mean = general_dataset_settings.acdc_dataset_mean
+        std = general_dataset_settings.acdc_dataset_std
+
+    image = (image * std) + mean
+    return image
 
 
 def per_slice_norm(images):

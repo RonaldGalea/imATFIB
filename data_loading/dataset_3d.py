@@ -15,6 +15,7 @@ class MRI_Dataset_3d(dataset_base.MRI_Dataset):
     """
     def __init__(self, dset_name, dset_type, paths, params):
         super(MRI_Dataset_3d, self).__init__(dset_name, dset_type, paths, params)
+        self.visualization_mode = False
 
     def __len__(self):
         return len(self.paths)
@@ -47,6 +48,9 @@ class MRI_Dataset_3d(dataset_base.MRI_Dataset):
 
         mask = mask.to(torch.int64)
 
+        # also return original input for viewing
+        if self.visualization_mode:
+            return image, mask, reconstruction_info, self.images[idx]
         return image, mask, reconstruction_info
 
     def load_everything_in_memory(self):

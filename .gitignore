@@ -11,3 +11,4 @@
 *.pt
 general_config.py
 runs/
+*.png

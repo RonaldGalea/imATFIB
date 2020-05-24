@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 
-import constants
 from utils import metrics
 from utils.ROI_crop import roi_crop
 
@@ -26,13 +25,13 @@ def compute_dice(prediction, mask):
     return dice, prediction, mask
 
 
-def process_volume(model, volume, mask, r_info):
+def process_volume(model, volume, mask, params, r_info=None):
     """
     Args:
     model: nn.Module
     volume: cuda tensor (depth height width)
     mask: cuda long tensor - ground truth (depth, height, width)
-    r_info: namedtuple - size of original roi and size of original prediction
+    r_info: list - coords of original roi for each slice
 
     Get the processed volume by the model (after log softmax), upsampled to the original size, ie
     the size of the mask
@@ -47,7 +46,7 @@ def process_volume(model, volume, mask, r_info):
     processed_volume = torch.cat(processed_volume)
 
     if r_info:
-        processed_volume = roi_crop.reinsert_roi(processed_volume, r_info)
+        processed_volume = roi_crop.reinsert_roi(processed_volume, r_info, params)
     processed_volume = torch.nn.functional.interpolate(processed_volume, mask.shape[1:],
                                                        mode="bilinear")
     return processed_volume

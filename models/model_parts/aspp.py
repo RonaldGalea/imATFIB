@@ -34,7 +34,7 @@ class ASPPPooling(nn.Sequential):
 
 
 class ASPP(nn.Module):
-    def __init__(self, in_channels, atrous_rates=[6, 12, 18], out_channels=256):
+    def __init__(self, in_channels, atrous_rates=[2, 4, 6], out_channels=256):
         super(ASPP, self).__init__()
         modules = []
         modules.append(nn.Sequential(

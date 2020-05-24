@@ -22,6 +22,7 @@ model_path = "experiments/{}/{}/model_checkpoint.pt"
 unet = "2D_Unet"
 deeplab = "DeepLabV3_plus"
 resnext_deeplab = "ResNeXt_DeepLabV3_plus"
+model_ids = [unet, deeplab, resnext_deeplab]
 
 heart = ["LV", "RV", "Myo"]
 
@@ -38,3 +39,6 @@ no_augmentation = "no_aug"
 simple_augmentation = "simple"
 heavy_augmentation = "heavy"
 aug_types = [no_augmentation, simple_augmentation, heavy_augmentation]
+
+results_overlay_gt = "gt_over"
+results_overlay_inp = "inp_over"

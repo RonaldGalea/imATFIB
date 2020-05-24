@@ -53,15 +53,11 @@ class DeepLabV3_plus(DeepLabV3_plus_base):
 
 
 def get_low_res_feature_conv(params):
+    in_channels = 2048 if params.model_id == constants.resnext_deeplab else 320
     if params.use_aspp:
-        raise NotImplementedError("not yet aspp...")
-
-    # replace aspp with a simple conv
-    if params.model_id == constants.resnext_deeplab:
-        low_conv = mobilenetv2.ConvBNReLU(in_planes=2048, out_planes=256,
-                                          kernel_size=1, bias=False)
-    elif params.model_id == constants.deeplab:
-        low_conv = mobilenetv2.ConvBNReLU(in_planes=320, out_planes=256,
+        low_conv = aspp.ASPP(in_channels=in_channels)
+    else:
+        low_conv = mobilenetv2.ConvBNReLU(in_planes=in_channels, out_planes=256,
                                           kernel_size=1, bias=False)
     return low_conv
 
@@ -81,12 +77,12 @@ def get_classifier(n_classes, params):
         classifier = nn.Sequential(nn.Conv2d(304, 256, kernel_size=3, stride=1, padding=1, bias=False),
                                    nn.BatchNorm2d(256),
                                    nn.ReLU(),
-                                   # nn.Dropout(0.5),
+                                   nn.Dropout(0.5),
                                    nn.Conv2d(256, 256, kernel_size=3,
                                              stride=1, padding=1, bias=False),
                                    nn.BatchNorm2d(256),
                                    nn.ReLU(),
-                                   # nn.Dropout(0.1),
+                                   nn.Dropout(0.1),
                                    nn.Conv2d(256, n_classes, kernel_size=1, stride=1))
 
     elif params.model_id == constants.deeplab:

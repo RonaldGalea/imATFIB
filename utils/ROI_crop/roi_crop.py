@@ -48,7 +48,7 @@ def get_mask_bounds(mask, params):
     return np.max(xs), np.min(xs), np.max(ys), np.min(ys)
 
 
-def reinsert_roi(prediction, reconstruction_info):
+def reinsert_roi(prediction, reconstruction_info, params):
     """
     Args:
     prediction: torch.tensor - model prediction (depth, roi_height, roi_width)
@@ -66,12 +66,12 @@ def reinsert_roi(prediction, reconstruction_info):
     """
     # reconstruct original shape
     depth, n_classes = prediction.shape[:2]
-    height, width = reconstruction_info.orig_pred
+    height, width = params.default_height, params.default_width
     original_pred = torch.zeros((depth, n_classes, height, width))
     original_pred = original_pred.to(general_config.device)
 
     # resize predicted rois
-    orig_roi_sizes = reconstruction_info.orig_roi
+    orig_roi_sizes = reconstruction_info
     for idx, (x_max, x_min, y_max, y_min) in enumerate(orig_roi_sizes):
         # print("In roi crop: ", idx, x_max, x_min, y_max, y_min)
         orig_roi_width, orig_roi_height = x_max - x_min + 1, y_max - y_min + 1

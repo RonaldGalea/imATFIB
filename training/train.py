@@ -41,6 +41,7 @@ class Model_Trainer():
         self.lr_handling = training_setup.lr_decay_setup(len(training_dataloader), params)
 
         self.experiment_info = experiment_info
+        self.writer = None
 
     def train(self):
         for epoch in range(self.start_epoch, self.params.n_epochs):
@@ -67,7 +68,7 @@ class Model_Trainer():
 
             if (epoch + 1) % general_config.evaluation_step == 0 or epoch == 0:
                 # init writer just as model is actually save to stop spamming empty stuff
-                if epoch == 0:
+                if self.writer is None:
                     self.writer = SummaryWriter(log_dir="runs/"+self.experiment_info,
                                                 filename_suffix=self.params.model_id)
                 val_dice, val_loss = self.evaluate(epoch)
@@ -121,7 +122,7 @@ class Model_Trainer():
         Processes volume slice by slice, upsamples output to original shape, computes metrics
         """
         processed_volume = training_processing.process_volume(self.model, volume, mask,
-                                                              r_info)
+                                                              self.params, r_info)
         loss = self.loss_function(processed_volume, mask)
         dice, _, _ = training_processing.compute_dice(processed_volume, mask)
         return loss.item(), dice

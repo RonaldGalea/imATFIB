@@ -19,5 +19,6 @@
 "first_decay": 60,
 "second_decay": 90,
 "roi_crop": "no_roi",
-"replace_stride": [false, false, true]
+"replace_stride": [false, false, true],
+"relative_roi_perturbation": true
 }

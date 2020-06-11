@@ -1,12 +1,10 @@
 import numpy as np
 import torch
 import cv2
-from collections import namedtuple
 from albumentations import (
     HorizontalFlip,
     Compose,
     ElasticTransform,
-    RandomGamma,
     Resize,
     RandomResizedCrop,
     Rotate,
@@ -18,7 +16,6 @@ import torchvision.transforms.functional as F
 import constants
 from utils.ROI_crop import roi_crop
 from experiments import general_dataset_settings
-from utils import visualization
 
 
 class Augmentor():
@@ -31,11 +28,9 @@ class Augmentor():
         self.plain_resize = Resize(height=params.default_height, width=params.default_width)
         self.random_crop_resize = RandomResizedCrop(height=params.default_height,
                                                     width=params.default_width,
-                                                    scale=(0.25, 1.0), ratio=(0.9, 1.1))
+                                                    scale=params.random_crop_scale,
+                                                    ratio=params.random_crop_ratio)
         self.roi_resize = Resize(height=params.roi_height, width=params.roi_width)
-        self.roi_random_crop_resize = RandomResizedCrop(height=params.roi_height,
-                                                        width=params.roi_width,
-                                                        scale=(0.7, 1.0), ratio=(0.9, 1.1))
         self.initialize_elements()
 
     def prepare_data_train(self, image, mask):
@@ -43,7 +38,6 @@ class Augmentor():
         1. get the data to the defaul size either by simple rescaling or random resized crop
         """
         image, mask = self.resizer(image=image, mask=mask).values()
-        # image, mask = self.plain_resize(image=image, mask=mask).values()
 
         # extract roi
         if self.params.roi_crop != constants.no_roi_extraction:
@@ -58,10 +52,6 @@ class Augmentor():
         # if roi was used, interpolate to roi size
         if self.params.roi_crop != constants.no_roi_extraction:
             if self.params.data_augmentation != constants.no_augmentation:
-                # image, mask = self.roi_random_crop_resize(image=image, mask=mask).values()
-                # i originally intended to use random resized crop, but it just performs bad, so for now stays commented
-                image, mask = self.roi_resize(image=image, mask=mask).values()
-            else:
                 image, mask = self.roi_resize(image=image, mask=mask).values()
 
         return image, mask
@@ -125,11 +115,6 @@ class Augmentor():
         roi_horizontal = slice(x_min, x_max+1)
         roi_vertical = slice(y_min, y_max+1)
 
-        # visualization.show_image2d(image, img_name=type + "_box",
-        #                            box_coords=((x_max, y_max), (x_min, y_min)))
-        # print("Coords for ", type, x_max, x_min, y_max, y_min)
-        # print(type, " shape: ", image.shape)
-
         roi = image[roi_vertical, roi_horizontal]
 
         return roi
@@ -170,15 +155,12 @@ class Augmentor():
         In the case of relative roi extraction, resize crop such that the minimum size is
         default height/width // 4
         """
-
         # practically, region cut won't always be perfect, so add a perturbation value
         if self.params.relative_roi_perturbation:
-            # print("Perturbing roi before: ", x_max, x_min, y_max, y_min)
             perfect_roi_width, perfect_roi_height = x_max - x_min, y_max - y_min
             width_perturb_limit = perfect_roi_width // 6
             height_perturb_limit = perfect_roi_height // 6
 
-            # print("Validating? :", validation)
             if not validation:
                 # perturb up to 33% of original size
                 x_min_perturb = np.random.randint(0, width_perturb_limit)
@@ -192,15 +174,11 @@ class Augmentor():
                 y_max_perturb = height_perturb_limit // 2
                 y_min_perturb = height_perturb_limit // 2
 
-            # print("Perturbation values: ", x_max_perturb,
-            #       x_min_perturb, y_max_perturb, y_min_perturb)
-
             x_min -= x_min_perturb
             x_max += x_max_perturb
             y_min -= y_min_perturb
             y_max += y_max_perturb
 
-            # print("Perturbing roi after: ", x_max, x_min, y_max, y_min)
         # clamp values back to image range
         width = self.params.default_width
         height = self.params.default_height
@@ -231,11 +209,12 @@ class Augmentor():
         return x_max, x_min, y_max, y_min
 
     def initialize_elements(self):
-        # use random crop if not using roi extraction
+        self.resizer = self.plain_resize
+        # use random crop if not using roi extraction, unless otherwise specified by scale
         if self.params.data_augmentation != constants.no_augmentation and self.params.roi_crop == constants.no_roi_extraction:
-            self.resizer = self.random_crop_resize
-        else:
-            self.resizer = self.plain_resize
+            if self.params.random_crop_scale != [1, 1]:
+                print("Using random resized cropping")
+                self.resizer = self.random_crop_resize
 
         starting_aug = [
             Rotate(limit=15),

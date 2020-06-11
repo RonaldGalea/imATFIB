@@ -50,3 +50,5 @@ def validate_params(params):
         raise AssertionError("Params not ok..." + "lr_decay")
     if roi_crop not in constants.roi_types:
         raise AssertionError("Params not ok..." + "roi_crop")
+    if roi_crop != constants.no_roi_extraction and params.default_height != 256:
+        raise Warning("ROI crop is used but the default height is not 256, is this want you truly want?")

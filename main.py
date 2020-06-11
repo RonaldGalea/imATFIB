@@ -21,28 +21,28 @@ from utils import prepare_models_and_data
 
 def main():
     parser = argparse.ArgumentParser(description='Run Settings.')
-    parser.add_argument('-dataset_name', dest="dataset_name",
+    parser.add_argument('--dataset_name', dest="dataset_name",
                         help='mmwhs/imatfib-whs/ACDC_training', default=constants.imatfib_root_dir)
-    parser.add_argument('-experiment_name', dest="experiment_name",
+    parser.add_argument('--experiment_name', dest="experiment_name",
                         help='experiment root folder', default=constants.resnext_deeplab)
-    parser.add_argument('-load_model', dest="load_model", type=bool,
+    parser.add_argument('--load_model', dest="load_model", type=bool,
                         help='lodel model weights and optimizer at specified experiment',
                         default=False)
-    parser.add_argument('-train_model', dest="train_model", type=bool,
+    parser.add_argument('--train_model', dest="train_model", type=bool,
                         help='trains model, from checkpoint if load_model else from scratch',
                         default=False)
-    parser.add_argument('-evaluate_model', dest="evaluate_model", type=bool,
+    parser.add_argument('--evaluate_model', dest="evaluate_model", type=bool,
                         help='evaluates model, load_model should be true when this is true',
                         default=False)
-    parser.add_argument('-view_results', dest="view_results", nargs='+',
+    parser.add_argument('--view_results', dest="view_results", nargs='+',
                         help='ids of models whose results are to be visualized')
-    parser.add_argument('-inspect_train_results', dest="inspect_train_results", type=bool,
+    parser.add_argument('--inspect_train_results', dest="inspect_train_results", type=bool,
                         help='visualize model results on the training set, augmentations inlcuded',
                         default=False)
-    parser.add_argument('-compute_dset_mean_std', dest="compute_dset_mean_std", type=bool,
+    parser.add_argument('--compute_dset_mean_std', dest="compute_dset_mean_std", type=bool,
                         help='computes the mean and std of the dataset, should then set corresponding values in general_config',
                         default=False)
-    parser.add_argument('-compute_dset_gt_bounds', dest="compute_dset_gt_bounds", type=bool,
+    parser.add_argument('--compute_dset_gt_bounds', dest="compute_dset_gt_bounds", type=bool,
                         help='computes bounds of the labeled area of the dataset',
                         default=False)
 

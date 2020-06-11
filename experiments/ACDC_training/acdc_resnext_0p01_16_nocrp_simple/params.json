@@ -1,9 +1,9 @@
 {
-"model_id": "ResNeXt_DeepLabV3_plus",
-"dataset": "imatfib-whs",
+  "model_id": "ResNeXt_DeepLabV3_plus",
+  "dataset": "ACDC_training",
 
-"learning_rate": 0.001,
-"batch_size": 12,
+"learning_rate": 0.01,
+"batch_size": 16,
 "n_epochs": 300,
 "default_height": 224,
 "default_width": 224,

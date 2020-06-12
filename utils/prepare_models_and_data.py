@@ -26,7 +26,8 @@ def prepare(model_ids, dataset_name):
         validate_params(params)
         print("Constructing model: ", id)
         model = training_setup.model_setup(dataset_name, params)
-        training_setup.load_model_weights(model, params, dataset_name)
+        # in this case, model id is equal to exp name
+        training_setup.load_model_weights(model, dataset_name, id)
         model.eval()
         prints.print_trained_parameters_count(model)
         models.append(model)

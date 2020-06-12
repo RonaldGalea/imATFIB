@@ -21,7 +21,7 @@ height, width = 400, 400
 matplot = False
 exist_label = True
 max_plot_nr = 8
-evaluation_step = 5
+evaluation_step = 10
 statistics_print_step = 3
 visualize_dataset = False
 

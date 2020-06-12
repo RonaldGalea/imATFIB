@@ -65,18 +65,18 @@ def load_model(model, optimizer, params, dset_name):
     return start_epoch
 
 
-def load_model_weights(model, params, dset_name):
-    checkpoint = torch.load(constants.model_path.format(dset_name, params.model_id))
+def load_model_weights(model, dset_name, experiment_name):
+    checkpoint = torch.load(constants.model_path.format(dset_name, experiment_name))
     model.load_state_dict(checkpoint['model_state_dict'])
 
 
-def save_model(epoch, model, optimizer, params, stats, dset_name):
+def save_model(epoch, model, optimizer, stats, dset_name, experiment_name):
     torch.save({
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
-    }, constants.model_path.format(dset_name, params.model_id))
-    stats.save(constants.stats_path.format(dset_name, params.model_id))
+    }, constants.model_path.format(dset_name, experiment_name))
+    stats.save(constants.stats_path.format(dset_name, experiment_name))
     print("Model saved successfully!")
 
 

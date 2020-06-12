@@ -12,3 +12,5 @@
 general_config.py
 runs/
 *.png
+*.json
+*.json

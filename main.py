@@ -19,7 +19,7 @@ from utils import visualization
 from utils import prepare_models_and_data
 
 
-def main():
+def main(experiment_name=None):
     parser = argparse.ArgumentParser(description='Run Settings.')
     parser.add_argument('--dataset_name', dest="dataset_name",
                         help='mmwhs/imatfib-whs/ACDC_training', default=constants.imatfib_root_dir)
@@ -47,16 +47,18 @@ def main():
                         default=False)
 
     args = parser.parse_args()
+    if experiment_name:
+        args.experiment_name = experiment_name
     print("Args in main: ", args, "\n")
     validate_args(args)
 
     if args.view_results:
-        *model_ids, overlay_type = args.view_results
+        model_ids = args.view_results
         print("Showing results on ", len(model_ids), " models")
         models, valid_dataloader, params = prepare_models_and_data.prepare(model_ids,
                                                                            args.dataset_name)
         visualization.visualize_validation_dataset(valid_dataloader, models, params,
-                                                   model_ids, overlay_type)
+                                                   model_ids)
 
     params = Params(constants.params_path.format(args.dataset_name, args.experiment_name))
     stats = Params(constants.stats_path.format(args.dataset_name, args.experiment_name))
@@ -72,7 +74,7 @@ def main():
     start_epoch = 0
     if args.load_model:
         start_epoch = training_setup.load_model(model, optimizer,
-                                                params, args.dataset_name)
+                                                args.dataset_name, args.experiment_name)
     else:
         if amp_available and general_config.use_amp:
             model, optimizer = amp.initialize(
@@ -85,7 +87,8 @@ def main():
                                         validation_dataloader=validation_dataloader,
                                         optimizer=optimizer, params=params, stats=stats,
                                         start_epoch=start_epoch, dataset_name=args.dataset_name,
-                                        experiment_info=experiment_info)
+                                        experiment_info=experiment_info,
+                                        experiment_name=args.experiment_name)
     if args.train_model:
         model_trainer.train()
 

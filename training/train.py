@@ -20,7 +20,7 @@ class Model_Trainer():
     """
 
     def __init__(self, model, training_dataloader, validation_dataloader, optimizer, params, stats,
-                 dataset_name, start_epoch=0, experiment_info="no_info"):
+                 dataset_name, start_epoch=0, experiment_info="no_info", experiment_name="no_name"):
         self.model = model
         self.training_dataloader = training_dataloader
         self.validation_dataloader = validation_dataloader
@@ -41,6 +41,7 @@ class Model_Trainer():
         self.lr_handling = training_setup.lr_decay_setup(len(training_dataloader), params)
 
         self.experiment_info = experiment_info
+        self.experiment_name = experiment_name
         self.writer = None
 
     def train(self):
@@ -94,8 +95,8 @@ class Model_Trainer():
         val_dice = np.mean(self.val_statistics.get_dice())
         if val_dice > self.stats.val:
             self.update_stats()
-            training_setup.save_model(epoch, self.model, self.optimizer, self.params, self.stats,
-                                      self.dataset_name)
+            training_setup.save_model(epoch, self.model, self.optimizer, self.stats,
+                                      self.dataset_name, self.experiment_name)
         return val_dice, self.val_statistics.get_loss()
 
     def process_sample_train(self, image, mask):

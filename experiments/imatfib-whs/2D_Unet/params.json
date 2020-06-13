@@ -17,7 +17,7 @@
 "lr_decay": "divide",
 "first_decay": 180,
 "second_decay": 270,
-"roi_crop": "relative_roi",
+"roi_crop": "no_roi",
 "relative_roi_perturbation": false,
 "random_crop_scale": [1, 1],
 "random_crop_ratio": [0.9, 1.1]

@@ -51,8 +51,7 @@ class Augmentor():
 
         # if roi was used, interpolate to roi size
         if self.params.roi_crop != constants.no_roi_extraction:
-            if self.params.data_augmentation != constants.no_augmentation:
-                image, mask = self.roi_resize(image=image, mask=mask).values()
+            image, mask = self.roi_resize(image=image, mask=mask).values()
 
         return image, mask
 

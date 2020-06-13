@@ -69,7 +69,7 @@ def visualize_validation_dataset(dataloader, models, params, model_names):
             image_list = [inp, msk_green]
             name_list = ["Input", "Mask"]
             total += 1
-            save_id = "results/" + params.roi_crop + "/" + "_" + \
+            save_id = "results/" + params.roi_crop + "".join(model_names) + "/" + "_" + \
                 str(total) + "_" + str(idx) + "_" + str(vol_idx)
 
             overlays, overlay_names = [], []
@@ -88,7 +88,7 @@ def visualize_validation_dataset(dataloader, models, params, model_names):
 
             image_list.extend(overlays)
             name_list.extend(overlay_names)
-            show_images(image_list, cols=len(image_list)//2, titles=name_list)
+            show_images(image_list, cols=len(image_list)//2, titles=name_list, save_id=save_id)
 
 
 def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask', use_orig_res=False):

@@ -1,34 +1,36 @@
+import torch.nn as nn
+
+from models.model_parts.unet_parts import DoubleConv, Down, Up, OutConv
+
 """
 Implementation of Unet taken from https://github.com/milesial/Pytorch-UNet/
 Unet paper: Olaf Ronneberger, Philipp Fischer, Thomas Brox: https://arxiv.org/abs/1505.04597
 """
 
 """ Full assembly of the parts to form the complete network """
-import torch.nn as nn
-import torch.nn.functional as F
-
-from models.model_parts.unet_parts import *
 
 
 class UNet(nn.Module):
-    def __init__(self, n_channels, n_classes, bilinear=True):
+    def __init__(self, n_channels, n_classes, bilinear=True, shrinking_factor=1):
         super(UNet, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.bilinear = bilinear
         self.softmax_layer = nn.LogSoftmax(dim=1)
 
-        self.inc = DoubleConv(n_channels, 64)
-        self.down1 = Down(64, 128)
-        self.down2 = Down(128, 256)
-        self.down3 = Down(256, 512)
+        base_channels = int(64 / shrinking_factor)
+
+        self.inc = DoubleConv(n_channels, base_channels)
+        self.down1 = Down(base_channels, base_channels * 2)
+        self.down2 = Down(base_channels * 2, base_channels * 4)
+        self.down3 = Down(base_channels * 4, base_channels * 8)
         factor = 2 if bilinear else 1
-        self.down4 = Down(512, 1024 // factor)
-        self.up1 = Up(1024, 512 // factor, bilinear)
-        self.up2 = Up(512, 256 // factor, bilinear)
-        self.up3 = Up(256, 128 // factor, bilinear)
-        self.up4 = Up(128, 64, bilinear)
-        self.outc = OutConv(64, n_classes)
+        self.down4 = Down(base_channels * 8, (base_channels * 16) / factor)
+        self.up1 = Up(base_channels * 16, (base_channels * 8) / factor, bilinear)
+        self.up2 = Up(base_channels * 8, (base_channels * 4) / factor, bilinear)
+        self.up3 = Up(base_channels * 4, (base_channels * 2) / factor, bilinear)
+        self.up4 = Up(base_channels * 2, base_channels, bilinear)
+        self.outc = OutConv(base_channels, n_classes)
 
         # weight initialization
         for m in self.modules():

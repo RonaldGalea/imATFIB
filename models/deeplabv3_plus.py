@@ -53,18 +53,20 @@ class DeepLabV3_plus(DeepLabV3_plus_base):
 
 
 def get_low_res_feature_conv(params):
-    in_channels = 2048 if params.model_id == constants.resnext_deeplab else 320
+    in_channels = int(2048 / params.shrinking_factor) if params.model_id == constants.resnext_deeplab else 320
     if params.use_aspp:
         low_conv = aspp.ASPP(in_channels=in_channels)
     else:
-        low_conv = mobilenetv2.ConvBNReLU(in_planes=in_channels, out_planes=256,
+        low_conv = mobilenetv2.ConvBNReLU(in_planes=in_channels,
+                                          out_planes=int(256 / params.shrinking_factor),
                                           kernel_size=1, bias=False)
     return low_conv
 
 
 def get_high_res_feature_conv(params):
     if params.model_id == constants.resnext_deeplab:
-        high_conv = mobilenetv2.ConvBNReLU(in_planes=256, out_planes=48,
+        high_conv = mobilenetv2.ConvBNReLU(in_planes=int(256 / params.shrinking_factor),
+                                           out_planes=int(48 / params.shrinking_factor),
                                            kernel_size=1, bias=False)
     elif params.model_id == constants.deeplab:
         high_conv = mobilenetv2.ConvBNReLU(in_planes=144, out_planes=48,
@@ -74,16 +76,17 @@ def get_high_res_feature_conv(params):
 
 def get_classifier(n_classes, params):
     if params.model_id == constants.resnext_deeplab:
-        classifier = nn.Sequential(nn.Conv2d(304, 256, kernel_size=3, stride=1, padding=1, bias=False),
-                                   nn.BatchNorm2d(256),
+        in_channels, out_channels = int(304 / params.shrinking_factor), int(256 / params.shrinking_factor)
+        classifier = nn.Sequential(nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
+                                   nn.BatchNorm2d(out_channels),
                                    nn.ReLU(),
                                    nn.Dropout(0.5),
-                                   nn.Conv2d(256, 256, kernel_size=3,
+                                   nn.Conv2d(out_channels, out_channels, kernel_size=3,
                                              stride=1, padding=1, bias=False),
-                                   nn.BatchNorm2d(256),
+                                   nn.BatchNorm2d(out_channels),
                                    nn.ReLU(),
                                    nn.Dropout(0.1),
-                                   nn.Conv2d(256, n_classes, kernel_size=1, stride=1))
+                                   nn.Conv2d(out_channels, n_classes, kernel_size=1, stride=1))
 
     elif params.model_id == constants.deeplab:
         classifier = nn.Sequential(
@@ -98,7 +101,9 @@ def get_classifier(n_classes, params):
 def get_backbone(n_channels, params):
     if params.model_id == constants.resnext_deeplab:
         backbone = resnet.resnext50_32x4d(initial_channels=n_channels,
-                                          replace_stride_with_dilation=params.replace_stride)
+                                          replace_stride_with_dilation=params.replace_stride,
+                                          shrinking_factor=params.shrinking_factor,
+                                          layer_count=params.layer_count)
     elif params.model_id == constants.deeplab:
         backbone = mobilenetv2.MobileNetV2(initial_channels=n_channels)
     return backbone

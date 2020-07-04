@@ -1,7 +1,6 @@
 import os
 import glob
 from pathlib import Path
-import general_config
 
 
 def acdc_train_val_split(input_folder, split_train_val=True):
@@ -23,8 +22,6 @@ def acdc_train_val_split(input_folder, split_train_val=True):
                 train_test = 'train'
 
             search = 'patient???_frame??.nii.gz'
-            if general_config.read_numpy:
-                search = 'patient???_frame??.npy'
 
             for file in glob.glob(os.path.join(folder_path, search)):
                 file_list[train_test].append(Path(file))

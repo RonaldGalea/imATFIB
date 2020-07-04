@@ -4,10 +4,6 @@ acdc_root_dir = "ACDC_training"
 imatfib_root_dir = "imatfib-whs"
 mmwhs_root_dir = "mmwhs"
 
-acdc_root_dir_npy = "ACDC_training_npy"
-imatfib_root_dir_npy = "imatfib-whs_npy"
-mmwhs_root_dir_npy = "mmwhs_npy"
-
 multi_class_seg = "multiple-classes"
 whole_heart_seg = "whole-heart"
 
@@ -24,7 +20,9 @@ deeplab = "DeepLabV3_plus"
 resnext_deeplab = "ResNeXt_DeepLabV3_plus"
 model_ids = [unet, deeplab, resnext_deeplab]
 
-heart = ["LV", "RV", "Myo"]
+acdc_heart = ["LV", "RV", "Myo"]
+mmwhs_heart = ["LV", "RV", "Myo", "LA", "RA", "AA", "PA"]
+imatfib_heart = ["LV", "RV", "Myo", "LA", "RA", "AA", "PA"]
 
 divide_decay = "divide"
 poly_decay = "poly"

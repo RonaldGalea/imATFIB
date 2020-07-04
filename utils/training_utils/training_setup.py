@@ -18,6 +18,8 @@ def model_setup(dset_name, params):
     else:
         if dset_name == constants.acdc_root_dir:
             n_classes = 4
+        else:
+            n_classes = 8
     if params.model_id == constants.unet:
         model = _2D_Unet.UNet(n_channels=1, n_classes=n_classes, shrinking_factor=params.shrinking_factor)
     elif params.model_id == constants.deeplab or params.model_id == constants.resnext_deeplab:

@@ -22,7 +22,7 @@ from utils import prepare_models_and_data
 def main(experiment_name=None):
     parser = argparse.ArgumentParser(description='Run Settings.')
     parser.add_argument('--dataset_name', dest="dataset_name",
-                        help='mmwhs/imatfib-whs/ACDC_training', default=constants.imatfib_root_dir)
+                        help='mmwhs/imatfib-whs/ACDC_training', default=constants.acdc_root_dir)
     parser.add_argument('--experiment_name', dest="experiment_name",
                         help='experiment root folder', default=constants.resnext_deeplab)
     parser.add_argument('--load_model', dest="load_model", type=bool,
@@ -30,12 +30,14 @@ def main(experiment_name=None):
                         default=False)
     parser.add_argument('--train_model', dest="train_model", type=bool,
                         help='trains model, from checkpoint if load_model else from scratch',
-                        default=False)
+                        default=True)
     parser.add_argument('--evaluate_model', dest="evaluate_model", type=bool,
                         help='evaluates model, load_model should be true when this is true',
                         default=False)
     parser.add_argument('--view_results', dest="view_results", nargs='+',
                         help='ids of models whose results are to be visualized')
+    parser.add_argument('--show_results', dest="show_results",
+                        help='if True, results are displayed, otherwise they are saved to a folder')
     parser.add_argument('--inspect_train_results', dest="inspect_train_results", type=bool,
                         help='visualize model results on the training set, augmentations inlcuded',
                         default=False)
@@ -46,7 +48,7 @@ def main(experiment_name=None):
                         help='computes bounds of the labeled area of the dataset',
                         default=False)
 
-    args = parser.parse_args()
+    args = parser.parse_args([])
     if experiment_name:
         args.experiment_name = experiment_name
     print("Args in main: ", args, "\n")
@@ -58,7 +60,7 @@ def main(experiment_name=None):
         models, valid_dataloader, params = prepare_models_and_data.prepare(model_ids,
                                                                            args.dataset_name)
         visualization.visualize_validation_dataset(valid_dataloader, models, params,
-                                                   model_ids)
+                                                   model_ids, args.show_results)
 
     params = Params(constants.params_path.format(args.dataset_name, args.experiment_name))
     stats = Params(constants.stats_path.format(args.dataset_name, args.experiment_name))

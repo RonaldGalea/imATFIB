@@ -16,7 +16,10 @@ def get_dataloaders(training_dataset, validation_dataset, params):
 
 
 def get_training_loader(training_dataset, params):
-    train_sampler = SubsetRandomSampler([i for i in range(len(training_dataset))])
+    if params.seqtrain:
+        train_sampler = SequentialSampler([i for i in range(len(training_dataset))])
+    else:
+        train_sampler = SubsetRandomSampler([i for i in range(len(training_dataset))])
 
     training_dataloader = DataLoader(training_dataset, batch_size=None,
                                      shuffle=False, num_workers=0,

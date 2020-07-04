@@ -14,7 +14,7 @@ height, width, matplot = general_config.height, general_config.width, general_co
 max_plot_nr, exist_label = general_config.max_plot_nr, general_config.exist_label
 
 
-def visualize_validation_dataset(dataloader, models, params, model_names):
+def visualize_validation_dataset(dataloader, models, params, model_names, show):
     """
     Args:
     dataloader: validation dataloader, has to return one volume at a time
@@ -82,12 +82,14 @@ def visualize_validation_dataset(dataloader, models, params, model_names):
                 name_list.append(model_name)
 
                 # overlay prediction on ground truth, with different color
-                caption = model_name + " " + "{:.3f}".format(float(dice[idx]))
+                caption = model_name + " " + "{:.3f}".format(float(np.mean(dice[idx])))
                 overlays.append(base_green + msk_green)
                 overlay_names.append(caption)
 
             image_list.extend(overlays)
             name_list.extend(overlay_names)
+            if show:
+                save_id = None
             show_images(image_list, cols=len(image_list)//2, titles=name_list, save_id=save_id)
 
 
@@ -110,8 +112,23 @@ def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask', us
     mask = (mask * (255/mask.max())).astype(np.uint8)
     cv2.imshow(img_name, image)
     cv2.imshow(mask_name, mask)
+    # show_acdc_classes(mask, image, img_name, mask_name)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+
+def show_acdc_classes(mask, image, img_name, mask_name):
+    print(np.unique(mask))
+    lv, rv, myo = np.zeros((*mask.shape,)), np.zeros((*mask.shape,)), np.zeros((*mask.shape,))
+    lv[mask == 1] = 1
+    rv[mask == 2] = 2
+    myo[mask == 3] = 3
+    mask = (mask * (255/mask.max())).astype(np.uint8)
+    cv2.imshow(img_name, image)
+    cv2.imshow(mask_name, mask)
+    cv2.imshow(mask_name + "lv", lv)
+    cv2.imshow(mask_name + "rv", rv)
+    cv2.imshow(mask_name + "myo", myo)
 
 
 def visualize_img_mask_pair(image_3d, mask_3d):

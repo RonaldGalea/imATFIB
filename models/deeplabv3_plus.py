@@ -46,10 +46,10 @@ class DeepLabV3_plus(DeepLabV3_plus_base):
     def __init__(self, n_channels, n_classes, params):
         super(DeepLabV3_plus, self).__init__(n_channels, n_classes, params)
 
+        self.backbone = get_backbone(n_channels, params)
         self.low_res_feature_conv = get_low_res_feature_conv(params)
         self.high_res_feature_conv = get_high_res_feature_conv(params)
         self.classifier = get_classifier(n_classes, params)
-        self.backbone = get_backbone(n_channels, params)
 
 
 def get_low_res_feature_conv(params):

@@ -40,3 +40,10 @@ aug_types = [no_augmentation, simple_augmentation, heavy_augmentation]
 
 results_overlay_gt = "gt_over"
 results_overlay_inp = "inp_over"
+
+load_training = "resume_training"
+load_transfer = "transfer_learning"
+
+no_freeze = "none"
+classifier_freeze = "classifier_layer"
+progressive_freeze = "all_layers"

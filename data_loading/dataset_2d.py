@@ -85,7 +85,6 @@ class MRI_Dataset_2d(dataset_base.MRI_Dataset):
         images, masks = [], []
         for path in self.paths:
             image, mask, info = reading.get_img_mask_pair(image_path=path,
-                                                          numpy=general_config.read_numpy,
                                                           dset_name=self.dset_name,
                                                           seg_type=self.seg_type)
             depth = image.shape[2]

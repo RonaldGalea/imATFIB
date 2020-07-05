@@ -21,7 +21,8 @@ def model_setup(dset_name, params):
         else:
             n_classes = 8
     if params.model_id == constants.unet:
-        model = _2D_Unet.UNet(n_channels=1, n_classes=n_classes, shrinking_factor=params.shrinking_factor)
+        model = _2D_Unet.UNet(n_channels=1, n_classes=n_classes,
+                              shrinking_factor=params.shrinking_factor)
     elif params.model_id == constants.deeplab or params.model_id == constants.resnext_deeplab:
         model = deeplabv3_plus.DeepLabV3_plus(n_channels=1, n_classes=n_classes, params=params)
 
@@ -58,10 +59,33 @@ def prepare_val_loader(dset_name, params):
 
 def load_model(model, optimizer, params, dset_name):
     checkpoint = torch.load(constants.model_path.format(dset_name, params.model_id))
-    model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    # start training from the next epoch, do not repeat the same epoch it was saved on
-    start_epoch = checkpoint['epoch'] + 1
+    if params.load_type == constants.load_training:
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        # start training from the next epoch, do not repeat the same epoch it was saved on
+        start_epoch = checkpoint['epoch'] + 1
+    elif params.load_type == constants.load_transfer:
+        pretrained_dict = checkpoint['model_state_dict']
+        model_dict = model.state_dict()
+
+        # 1. filter out unnecessary keys
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        keys_to_delete = []
+        for k_pre, v_pre in pretrained_dict.items():
+            if v_pre.shape != model_dict[k_pre].shape:
+                print(k_pre)
+                print("pretrained: ", v_pre.shape, "current: ", model_dict[k_pre].shape)
+                print("Found a layer with different shape in the pretrained model... This should only happen at most once (for the last layer)")
+                # delete the mismatched key
+                keys_to_delete.append(k_pre)
+        for k in keys_to_delete:
+            del pretrained_dict[k]
+        # 2. overwrite entries in the existing state dict
+        model_dict.update(pretrained_dict)
+        # 3. load the new state dict
+        model.load_state_dict(model_dict)
+
+        start_epoch = 0
     print('Model loaded successfully')
 
     return start_epoch

@@ -25,10 +25,10 @@ class UNet(nn.Module):
         self.down2 = Down(base_channels * 2, base_channels * 4)
         self.down3 = Down(base_channels * 4, base_channels * 8)
         factor = 2 if bilinear else 1
-        self.down4 = Down(base_channels * 8, (base_channels * 16) / factor)
-        self.up1 = Up(base_channels * 16, (base_channels * 8) / factor, bilinear)
-        self.up2 = Up(base_channels * 8, (base_channels * 4) / factor, bilinear)
-        self.up3 = Up(base_channels * 4, (base_channels * 2) / factor, bilinear)
+        self.down4 = Down(base_channels * 8, (base_channels * 16) // factor)
+        self.up1 = Up(base_channels * 16, (base_channels * 8) // factor, bilinear)
+        self.up2 = Up(base_channels * 8, (base_channels * 4) // factor, bilinear)
+        self.up3 = Up(base_channels * 4, (base_channels * 2) // factor, bilinear)
         self.up4 = Up(base_channels * 2, base_channels, bilinear)
         self.outc = OutConv(base_channels, n_classes)
 

@@ -10,7 +10,7 @@ except ImportError:
 
 import general_config
 import constants
-from training import model_statistics, lr_handler
+from training import model_statistics, freezer
 from utils.training_utils import training_setup, training_processing, prints
 
 
@@ -39,12 +39,17 @@ class Model_Trainer():
         self.loss_function = torch.nn.NLLLoss(weight=None, reduction='mean')
         self.optimizer = optimizer
         self.lr_handling = training_setup.lr_decay_setup(len(training_dataloader), params)
+        self.model_freezer = freezer.Model_Freezer(model, optimizer, params)
 
         self.experiment_info = experiment_info
         self.experiment_name = experiment_name
         self.writer = None
 
     def train(self):
+        if self.params.freeze_type != constants.no_freeze:
+            # otherwise training is resumed, so model should be loaded frozen
+            if self.start_epoch == 0:
+                self.model_freezer.freeze()
         for epoch in range(self.start_epoch, self.params.n_epochs):
             print("Starting epoch: ", epoch, "\n")
             start = time.time()
@@ -56,6 +61,7 @@ class Model_Trainer():
                 loss_value, dice = self.process_sample_train(image, mask)
                 self.train_statistics.update(loss_value, dice)
                 self.lr_handling.step(epoch, self.optimizer)
+            self.model_freezer.step(epoch)
 
             print("--------------------------------------------------------------")
             print("Base learning rate vs current learning rate: ",

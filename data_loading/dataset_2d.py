@@ -1,5 +1,6 @@
 import torch
 import cv2
+import numpy as np
 
 import general_config
 import constants
@@ -57,18 +58,17 @@ class MRI_Dataset_2d(dataset_base.MRI_Dataset):
             # print(image.shape)
 
             # print("After", image.shape, mask.shape, type(image), type(mask))
-            # visualization.visualize_img_mask_pair_2d(image, mask, "after_img", "after_mask", use_orig_res=True)
+            # visualization.visualize_img_mask_pair_2d(image, mask, "after_img", "after_mask", use_orig_res=True, wait=True)
             # cv2.destroyAllWindows()
 
             # torch tensors
             image = torch.from_numpy(image)
+            mask = mask.astype(np.int64)
             mask = torch.from_numpy(mask)
 
             height, width = image.shape
             image = image.view(1, height, width)
             image = self.augmentor.normalize(image)
-
-            mask = mask.to(torch.int64)
 
             images_list.append(image)
             masks_list.append(mask)

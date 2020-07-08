@@ -162,10 +162,10 @@ class Augmentor():
 
             if not validation:
                 # perturb up to 33% of original size
-                x_min_perturb = np.random.randint(0, width_perturb_limit)
-                x_max_perturb = np.random.randint(0, width_perturb_limit)
-                y_max_perturb = np.random.randint(0, height_perturb_limit)
-                y_min_perturb = np.random.randint(0, height_perturb_limit)
+                x_min_perturb = np.random.randint(0, width_perturb_limit+1)
+                x_max_perturb = np.random.randint(0, width_perturb_limit+1)
+                y_max_perturb = np.random.randint(0, height_perturb_limit+1)
+                y_min_perturb = np.random.randint(0, height_perturb_limit+1)
             else:
                 # if we're validating, add fixed perturbation to avoid a lucky eval
                 x_min_perturb = width_perturb_limit // 2
@@ -244,6 +244,7 @@ class Augmentor():
             self.dataset_std = general_dataset_settings.acdc_dataset_std
 
         else:
-            raise NotImplementedError("Haven't gotten to mmwhs yet..")
+            self.dataset_mean = general_dataset_settings.mmwhs_dataset_mean
+            self.dataset_std = general_dataset_settings.mmwhs_dataset_std
 
         print("Dataset mean and std: ", self.dataset_mean, self.dataset_std)

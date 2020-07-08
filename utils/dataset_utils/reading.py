@@ -53,8 +53,10 @@ def get_img_mask_pair(image_path, dset_name=constants.acdc_root_dir,
         mask_path = mask_path / (image_path.stem + image_path.suffix)
 
     elif constants.mmwhs_root_dir in dset_name:
+        parts = image_path.stem.split('.')
+        name = ''.join(parts[0]+'mapped.' + parts[1])
         mask_path = image_path.parent.parent / 'ground-truth' / \
-            seg_type / (image_path.stem + image_path.suffix)
+            seg_type / (name + image_path.suffix)
     else:
         # add _gt to get the path to the label
         name_with_ext = image_path.parts[-1]
@@ -68,7 +70,7 @@ def get_img_mask_pair(image_path, dset_name=constants.acdc_root_dir,
 
     image = np.array(image_info.dataobj)
     mask = np.array(mask_info.dataobj)
-    
+
     # necessary information to save .nii file and compute metrics
     image = image.astype(np.float32)
     info = Info(mask_info.affine, mask_info.header)

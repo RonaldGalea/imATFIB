@@ -20,9 +20,8 @@ deeplab = "DeepLabV3_plus"
 resnext_deeplab = "ResNeXt_DeepLabV3_plus"
 model_ids = [unet, deeplab, resnext_deeplab]
 
-acdc_heart = ["LV", "RV", "Myo"]
-mmwhs_heart = ["LV", "RV", "Myo", "LA", "RA", "AA", "PA"]
-imatfib_heart = ["LV", "RV", "Myo", "LA", "RA", "AA", "PA"]
+acdc_heart = ["LVC", "LVMyo", "RVC"]
+mmwhs_heart = ["LVC", "LVMyo", "RVC", "LA", "RA", "AA", "PA"]
 
 divide_decay = "divide"
 poly_decay = "poly"
@@ -41,9 +40,12 @@ aug_types = [no_augmentation, simple_augmentation, heavy_augmentation]
 results_overlay_gt = "gt_over"
 results_overlay_inp = "inp_over"
 
+no_load = "none"
 load_training = "resume_training"
 load_transfer = "transfer_learning"
+load_types = [load_training, load_transfer, no_load]
 
 no_freeze = "none"
 classifier_freeze = "classifier_layer"
 progressive_freeze = "all_layers"
+freeze_types = [no_freeze, classifier_freeze, progressive_freeze]

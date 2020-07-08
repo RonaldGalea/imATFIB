@@ -57,8 +57,9 @@ def prepare_val_loader(dset_name, params):
     return validation_dataloader
 
 
-def load_model(model, optimizer, params, dset_name):
-    checkpoint = torch.load(constants.model_path.format(dset_name, params.model_id))
+def load_model(model, optimizer, params, dset_name, experiment_name):
+    checkpoint = torch.load(constants.model_path.format(dset_name, experiment_name))
+    start_epoch = 0
     if params.load_type == constants.load_training:
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -84,8 +85,6 @@ def load_model(model, optimizer, params, dset_name):
         model_dict.update(pretrained_dict)
         # 3. load the new state dict
         model.load_state_dict(model_dict)
-
-        start_epoch = 0
     print('Model loaded successfully')
 
     return start_epoch

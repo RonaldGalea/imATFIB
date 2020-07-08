@@ -100,7 +100,7 @@ class Model_Trainer():
 
         val_dice = np.mean(self.val_statistics.get_dice())
         if val_dice > self.stats.val:
-            self.update_stats()
+            self.val_statistics.update_stats(self.stats)
             training_setup.save_model(epoch, self.model, self.optimizer, self.stats,
                                       self.dataset_name, self.experiment_name)
         return val_dice, self.val_statistics.get_loss()
@@ -133,14 +133,3 @@ class Model_Trainer():
         loss = self.loss_function(processed_volume, mask)
         dice, _, _ = training_processing.compute_dice(processed_volume, mask)
         return loss.item(), dice
-
-    def update_stats(self):
-        val_dice = self.val_statistics.get_dice()
-        train_dice = self.train_statistics.get_dice()
-        if len(val_dice) > 1:
-            for value, name in zip(val_dice, constants.heart):
-                self.stats.dict[name + '_val'] = value
-            for value, name in zip(train_dice, constants.heart):
-                self.stats.dict[name + '_train'] = value
-        self.stats.val = np.mean(val_dice)
-        self.stats.train = np.mean(train_dice)

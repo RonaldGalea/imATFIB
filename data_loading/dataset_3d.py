@@ -35,6 +35,7 @@ class MRI_Dataset_3d(dataset_base.MRI_Dataset):
 
         # torch tensors
         image = torch.from_numpy(image)
+        mask = mask.astype(np.int64)
         mask = torch.from_numpy(mask)
 
         normalized_image = []
@@ -45,8 +46,6 @@ class MRI_Dataset_3d(dataset_base.MRI_Dataset):
             slice = slice.view(heigth, width)
             normalized_image.append(slice)
         image = torch.stack(normalized_image)
-
-        mask = mask.to(torch.int64)
 
         # also return original input for viewing
         if self.visualization_mode:

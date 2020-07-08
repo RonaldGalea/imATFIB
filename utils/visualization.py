@@ -93,7 +93,8 @@ def visualize_validation_dataset(dataloader, models, params, model_names, show):
             show_images(image_list, cols=len(image_list)//2, titles=name_list, save_id=save_id)
 
 
-def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask', use_orig_res=False):
+def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask', use_orig_res=False,
+                               wait=False):
     """
     Args:
     image - ndarray: HxW image
@@ -108,27 +109,43 @@ def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask', us
         image = augmented['image']
         mask = augmented['mask']
 
+    print("bef", np.unique(mask))
     image = (image * (255/image.max())).astype(np.uint8)
+    # if not (420 in np.unique(mask) and 421 in np.unique(mask)):
+    #     return
+    # show_mmwhs_classes(mask, image, img_name, mask_name)
     mask = (mask * (255/mask.max())).astype(np.uint8)
+    print("aft", np.unique(mask))
     cv2.imshow(img_name, image)
     cv2.imshow(mask_name, mask)
     # show_acdc_classes(mask, image, img_name, mask_name)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    if wait:
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
 
 def show_acdc_classes(mask, image, img_name, mask_name):
-    print(np.unique(mask))
-    lv, rv, myo = np.zeros((*mask.shape,)), np.zeros((*mask.shape,)), np.zeros((*mask.shape,))
-    lv[mask == 1] = 1
-    rv[mask == 2] = 2
-    myo[mask == 3] = 3
+    lvc, lvmyo, rvc = np.zeros((*mask.shape,)), np.zeros((*mask.shape,)), np.zeros((*mask.shape,))
+    lvc[mask == 85] = 75
+    lvmyo[mask == 170] = 150
+    rvc[mask == 255] = 225
     mask = (mask * (255/mask.max())).astype(np.uint8)
     cv2.imshow(img_name, image)
     cv2.imshow(mask_name, mask)
-    cv2.imshow(mask_name + "lv", lv)
-    cv2.imshow(mask_name + "rv", rv)
-    cv2.imshow(mask_name + "myo", myo)
+    cv2.imshow(mask_name + "lvc", lvc)
+    cv2.imshow(mask_name + "lvmyo", lvmyo)
+    cv2.imshow(mask_name + "rvc", rvc)
+
+
+def show_mmwhs_classes(mask, image, img_name, mask_name):
+    lvc, lvmyo = np.zeros((*mask.shape,)), np.zeros((*mask.shape,))
+    lvc[mask == 421] = 75
+    lvmyo[mask == 420] = 150
+    mask = (mask * (255/mask.max())).astype(np.uint8)
+    cv2.imshow(img_name, image)
+    cv2.imshow(mask_name, mask)
+    cv2.imshow(mask_name + "?", lvc)
+    cv2.imshow(mask_name + "??", lvmyo)
 
 
 def visualize_img_mask_pair(image_3d, mask_3d):
@@ -146,6 +163,7 @@ def visualize_img_mask_pair(image_3d, mask_3d):
 
             current_img = image_3d[:, :, i]
             current_mask = mask_3d[:, :, i]
+            print(np.unique(current_mask))
 
             augmented = resize(image=current_img, mask=current_mask)
             current_img = augmented['image']

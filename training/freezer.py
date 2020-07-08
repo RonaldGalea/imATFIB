@@ -47,7 +47,11 @@ class Model_Freezer():
             for param in self.model.parameters():
                 param.requires_grad = True
         else:
-            for child in self.model.children():
+            for idx, child in enumerate(self.model.children()):
+                # actually need the penultimate layer trainable too in the case of unet,
+                # otherwise only 130 params are left to train, which is a waste
+                if self.params.model_id == "2D_Unet" and idx == 9:
+                    break
                 for param in child.parameters():
                     param.requires_grad = False
 

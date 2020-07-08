@@ -22,3 +22,8 @@ imatfib_y_roi_min = 62
 
 acdc_dataset_mean = 69.52275548950034
 acdc_dataset_std = 90.27520888722917
+
+# MMWHS
+
+mmwhs_dataset_mean = 198.63922611900142
+mmwhs_dataset_std = 338.87197211867795

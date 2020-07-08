@@ -42,6 +42,8 @@ def validate_params(params):
     data_augmentation = params.data_augmentation
     lr_decay = params.lr_decay
     roi_crop = params.roi_crop
+    load_type = params.load_type
+    freeze_type = params.freeze_type
     if norm_type not in constants.norm_types:
         raise AssertionError("Params not ok..." + "norm_type")
     if data_augmentation not in constants.aug_types:
@@ -51,4 +53,8 @@ def validate_params(params):
     if roi_crop not in constants.roi_types:
         raise AssertionError("Params not ok..." + "roi_crop")
     if roi_crop != constants.no_roi_extraction and params.default_height != 256:
-        raise Warning("ROI crop is used but the default height is not 256, is this want you truly want?")
+        print("ROI crop is used but the default height is not 256, is this want you truly want?")
+    if load_type not in constants.load_types:
+        raise AssertionError("Params not ok..." + "load_type")
+    if freeze_type not in constants.freeze_types:
+        raise AssertionError("Params not ok..." + "freeze_type")

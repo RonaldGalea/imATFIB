@@ -48,32 +48,33 @@ class MRI_Dataset_2d(dataset_base.MRI_Dataset):
         - torch.tensor of shape: Batch x H x W (mask: int64)
         """
         images_list, masks_list = [], []
+        coords_n_scores = []
         for idx in batched_indices:
             image, mask = self.images[idx], self.masks[idx]
+            if self.params.model_id in constants.segmentor_ids:
 
-            # print("Before", image.shape, mask.shape, type(image), type(mask))
-            # visualization.visualize_img_mask_pair_2d(image, mask, use_orig_res=True)
+                image, mask = self.augmentor.segmentor_train_data(image, mask)
 
-            image, mask = self.augmentor.prepare_data_train(image, mask)
-            # print(image.shape)
+                # torch tensors
+                mask = mask.astype(np.int64)
+                mask = torch.from_numpy(mask)
 
-            # print("After", image.shape, mask.shape, type(image), type(mask))
-            # visualization.visualize_img_mask_pair_2d(image, mask, "after_img", "after_mask", use_orig_res=True, wait=True)
-            # cv2.destroyAllWindows()
+                masks_list.append(mask)
+            else:
+                image, coords_n_score = self.augmentor.detector_train_data(image, mask)
 
-            # torch tensors
+                coords_n_score = torch.tensor(coords_n_score)
+                coords_n_score = coords_n_score.to(torch.float32)
+
+                coords_n_scores.append(coords_n_score)
+
             image = torch.from_numpy(image)
-            mask = mask.astype(np.int64)
-            mask = torch.from_numpy(mask)
-
-            height, width = image.shape
-            image = image.view(1, height, width)
-            image = self.augmentor.normalize(image)
-
+            image = self.normalize_image(image)
             images_list.append(image)
-            masks_list.append(mask)
 
-        return torch.stack(images_list), torch.stack(masks_list)
+        if masks_list:
+            return torch.stack(images_list), torch.stack(masks_list)
+        return torch.stack(images_list), torch.stack(coords_n_scores)
 
     def load_everything_in_memory(self):
         """
@@ -94,6 +95,12 @@ class MRI_Dataset_2d(dataset_base.MRI_Dataset):
 
         self.images = images
         self.masks = masks
+
+    def normalize_image(self, image):
+        height, width = image.shape
+        image = image.view(1, height, width)
+        image = self.augmentor.normalize(image)
+        return image
 
     def get_images(self):
         return self.images

@@ -18,7 +18,12 @@ model_path = "experiments/{}/{}/model_checkpoint.pt"
 unet = "2D_Unet"
 deeplab = "DeepLabV3_plus"
 resnext_deeplab = "ResNeXt_DeepLabV3_plus"
-model_ids = [unet, deeplab, resnext_deeplab]
+segmentor_ids = [unet, deeplab, resnext_deeplab]
+
+mobilenet_detector = "mobilenet_detector"
+resnet18_detector = "resnet18_detector"
+resnet50_detector = "resnet50_detector"
+detectors = [mobilenet_detector, resnet18_detector, resnet50_detector]
 
 acdc_heart = ["LVC", "LVMyo", "RVC"]
 mmwhs_heart = ["LVC", "LVMyo", "RVC", "LA", "RA", "AA", "PA"]
@@ -26,6 +31,8 @@ mmwhs_heart = ["LVC", "LVMyo", "RVC", "LA", "RA", "AA", "PA"]
 divide_decay = "divide"
 poly_decay = "poly"
 lr_schedulers = [divide_decay, poly_decay]
+
+optimizers = ["adam"]
 
 no_roi_extraction = "no_roi"
 relative_roi_extraction = "relative_roi"
@@ -40,12 +47,10 @@ aug_types = [no_augmentation, simple_augmentation, heavy_augmentation]
 results_overlay_gt = "gt_over"
 results_overlay_inp = "inp_over"
 
-no_load = "none"
 load_training = "resume_training"
 load_transfer = "transfer_learning"
-load_types = [load_training, load_transfer, no_load]
+load_types = [load_training, load_transfer]
 
-no_freeze = "none"
 classifier_freeze = "classifier_layer"
 progressive_freeze = "all_layers"
-freeze_types = [no_freeze, classifier_freeze, progressive_freeze]
+freeze_types = [classifier_freeze, progressive_freeze]

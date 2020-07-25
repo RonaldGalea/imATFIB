@@ -61,11 +61,32 @@ def gradient_weight_check(model):
     print("Mean and max weights: ", torch.mean(avg_weigths), torch.mean(max_weigths), "\n\n")
 
 
-def update_tensorboard_graphs(writer, train_dice, train_loss, val_dice, val_loss, epoch):
+def update_tensorboard_graphs_segmentation(writer, train_dice, train_loss, val_dice, val_loss, epoch):
     writer.add_scalar('Loss/train', train_loss, epoch)
     writer.add_scalar('Dice/train', np.mean(train_dice), epoch)
     writer.add_scalar('Loss/val', val_loss, epoch)
     writer.add_scalar('Dice/val', np.mean(val_dice), epoch)
+
+
+def update_tensorboard_graphs_detection(writer, train_metrics, train_loss, val_metrics, val_loss, epoch):
+    train_iou, train_f1 = train_metrics
+    val_iou, val_f1 = val_metrics
+    train_loc_loss, train_score_loss = train_loss
+    val_loc_loss, val_score_loss = val_loss
+    total_train_loss = sum(train_loss)
+    total_val_loss = sum(val_loss)
+
+    writer.add_scalar('Loss/train', total_train_loss, epoch)
+    writer.add_scalar('Loc Loss/train', train_loc_loss, epoch)
+    writer.add_scalar('Score Loss/train', train_score_loss, epoch)
+    writer.add_scalar('IOU/train', train_iou, epoch)
+    writer.add_scalar('F1/train', train_f1, epoch)
+
+    writer.add_scalar('Loss/val', total_val_loss, epoch)
+    writer.add_scalar('Loc Loss/val', val_loc_loss, epoch)
+    writer.add_scalar('Score Loss/val', val_score_loss, epoch)
+    writer.add_scalar('IOU/val', val_iou, epoch)
+    writer.add_scalar('F1/val', val_f1, epoch)
 
 
 def create_tensorboard_name(args, params):

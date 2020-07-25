@@ -11,14 +11,14 @@ class Model_Freezer():
         self.n_unfrozen = 0
 
     def freeze(self):
-        if self.params.freeze_type == constants.no_freeze:
+        if not hasattr(self.params, "freeze_type"):
             return
         else:
             self.classifier_layer()
         self.print_stats()
 
     def step(self, current_epoch):
-        if self.params.freeze_type == constants.no_freeze:
+        if not hasattr(self.params, "freeze_type"):
             return
         elif self.params.freeze_type == constants.classifier_freeze:
             if current_epoch == (self.params.n_epochs // 2):

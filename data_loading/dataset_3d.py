@@ -26,18 +26,25 @@ class MRI_Dataset_3d(dataset_base.MRI_Dataset):
         torch.tensor: D x H x W (float32 image)
         torch.tensor: D x H x W (int64 mask)
         """
+        coords_n_scores = None
         idx = batched_indices[0]
-        image, mask = self.images[idx], self.masks[idx]
+        image, mask, header_info = self.images[idx], self.masks[idx], self.infos[idx]
         # D x H x W
         image, mask = np.transpose(image, (2, 0, 1)), np.transpose(mask, (2, 0, 1))
 
-        image, reconstruction_info = self.augmentor.prepare_data_val(image, mask)
+        if self.params.model_id in constants.segmentor_ids:
+            image, reconstruction_info = self.augmentor.segmentor_valid_data(image, mask)
 
-        # torch tensors
+            # torch tensors
+            mask = mask.astype(np.int64)
+            mask = torch.from_numpy(mask)
+
+        elif self.params.model_id in constants.detectors:
+            image, coords_n_scores = self.augmentor.detector_valid_data(image, mask)
+            coords_n_scores = torch.tensor(coords_n_scores)
+            coords_n_scores = coords_n_scores.to(torch.float32)
+
         image = torch.from_numpy(image)
-        mask = mask.astype(np.int64)
-        mask = torch.from_numpy(mask)
-
         normalized_image = []
         for slice in image:
             heigth, width = slice.shape
@@ -47,10 +54,13 @@ class MRI_Dataset_3d(dataset_base.MRI_Dataset):
             normalized_image.append(slice)
         image = torch.stack(normalized_image)
 
-        # also return original input for viewing
-        if self.visualization_mode:
-            return image, mask, reconstruction_info, self.images[idx]
-        return image, mask, reconstruction_info
+        if coords_n_scores is None:
+            # also return original input for viewing
+            if self.visualization_mode:
+                return image, mask, reconstruction_info, self.images[idx]
+            return image, mask, reconstruction_info, header_info
+
+        return image, coords_n_scores
 
     def load_everything_in_memory(self):
         """
@@ -59,13 +69,11 @@ class MRI_Dataset_3d(dataset_base.MRI_Dataset):
         self.images = list of 3D volumes
         self.masks = labels for those volumes
         """
-        images, masks = [], []
+        self.images, self.masks, self.infos = [], [], []
         for path in self.paths:
             image, mask, info = reading.get_img_mask_pair(image_path=path,
                                                           dset_name=self.dset_name,
                                                           seg_type=self.seg_type)
-            images.append(image)
-            masks.append(mask)
-
-        self.images = images
-        self.masks = masks
+            self.images.append(image)
+            self.masks.append(mask)
+            self.infos.append(info)

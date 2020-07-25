@@ -11,5 +11,6 @@
 *.pt
 general_config.py
 runs/
+experiments/
 *.png
 *.json

@@ -13,7 +13,3 @@ general_config.py
 runs/
 *.png
 *.json
-*.json
-*.json
-*.json
-experiments/imatfib-whs/ResNeXt_DeepLabV3_plus/params.json

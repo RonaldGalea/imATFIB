@@ -19,28 +19,25 @@ from utils import visualization
 from utils import prepare_models_and_data
 
 
-def main(experiment_name=None):
+def main(experiment_name=None, load_model=False):
     parser = argparse.ArgumentParser(description='Run Settings.')
     parser.add_argument('--dataset_name', dest="dataset_name",
-                        help='mmwhs/imatfib-whs/ACDC_training', default=constants.acdc_root_dir)
+                        help='mmwhs/imatfib-whs/ACDC_training', default=constants.imatfib_root_dir)
     parser.add_argument('--experiment_name', dest="experiment_name",
                         help='experiment root folder', default=constants.resnext_deeplab)
     parser.add_argument('--load_model', dest="load_model", type=bool,
                         help='lodel model weights and optimizer at specified experiment',
-                        default=False)
+                        default=True)
     parser.add_argument('--train_model', dest="train_model", type=bool,
                         help='trains model, from checkpoint if load_model else from scratch',
-                        default=True)
+                        default=False)
     parser.add_argument('--evaluate_model', dest="evaluate_model", type=bool,
                         help='evaluates model, load_model should be true when this is true',
-                        default=False)
+                        default=True)
     parser.add_argument('--view_results', dest="view_results", nargs='+',
                         help='ids of models whose results are to be visualized')
     parser.add_argument('--show_results', dest="show_results",
                         help='if True, results are displayed, otherwise they are saved to a folder')
-    parser.add_argument('--inspect_train_results', dest="inspect_train_results", type=bool,
-                        help='visualize model results on the training set, augmentations inlcuded',
-                        default=False)
     parser.add_argument('--compute_dset_mean_std', dest="compute_dset_mean_std", type=bool,
                         help='computes the mean and std of the dataset, should then set corresponding values in general_config',
                         default=False)
@@ -48,9 +45,11 @@ def main(experiment_name=None):
                         help='computes bounds of the labeled area of the dataset',
                         default=False)
 
-    args = parser.parse_args([])
+    args = parser.parse_args()
     if experiment_name:
         args.experiment_name = experiment_name
+    if load_model:
+        args.load_model = load_model
     print("Args in main: ", args, "\n")
     validate_args(args)
 
@@ -62,7 +61,10 @@ def main(experiment_name=None):
         visualization.visualize_validation_dataset(valid_dataloader, models, params,
                                                    model_ids, args.show_results)
 
+        return
+
     params = Params(constants.params_path.format(args.dataset_name, args.experiment_name))
+    params.dataset = args.dataset_name
     stats = Params(constants.stats_path.format(args.dataset_name, args.experiment_name))
     validate_params(params)
     prints.show_training_info(params)
@@ -75,8 +77,8 @@ def main(experiment_name=None):
     optimizer = training_setup.optimizer_setup(model, params)
     start_epoch = 0
     if args.load_model:
-        start_epoch = training_setup.load_model(model, optimizer,
-                                                args.dataset_name, args.experiment_name)
+        start_epoch = training_setup.load_model(
+            model, optimizer, params, args.dataset_name, args.experiment_name)
     else:
         if amp_available and general_config.use_amp:
             model, optimizer = amp.initialize(
@@ -85,42 +87,32 @@ def main(experiment_name=None):
     prints.print_trained_parameters_count(model, optimizer)
 
     experiment_info = prints.create_tensorboard_name(args, params)
-    model_trainer = train.Model_Trainer(model=model, training_dataloader=training_dataloader,
-                                        validation_dataloader=validation_dataloader,
-                                        optimizer=optimizer, params=params, stats=stats,
-                                        start_epoch=start_epoch, dataset_name=args.dataset_name,
-                                        experiment_info=experiment_info,
-                                        experiment_name=args.experiment_name)
+
+    if params.model_id in constants.segmentor_ids:
+        model_trainer = train.Segmentation_Trainer(model=model,
+                                                   training_dataloader=training_dataloader,
+                                                   validation_dataloader=validation_dataloader,
+                                                   optimizer=optimizer, params=params, stats=stats,
+                                                   start_epoch=start_epoch,
+                                                   dataset_name=args.dataset_name,
+                                                   experiment_info=experiment_info,
+                                                   experiment_name=args.experiment_name)
+    elif params.model_id in constants.detectors:
+        model_trainer = train.Detector_Trainer(model=model, training_dataloader=training_dataloader,
+                                               validation_dataloader=validation_dataloader,
+                                               optimizer=optimizer, params=params, stats=stats,
+                                               start_epoch=start_epoch,
+                                               dataset_name=args.dataset_name,
+                                               experiment_info=experiment_info,
+                                               experiment_name=args.experiment_name)
     if args.train_model:
         model_trainer.train()
 
     if args.evaluate_model:
         model_trainer.evaluate(start_epoch)
 
-    if args.inspect_train_results:
-        model.eval()
-        with torch.no_grad():
-            for image, mask in training_dataloader:
-                print("In main: ", image.shape)
-                image, mask = image.to(general_config.device), mask.to(general_config.device)
-                prediction = model(image)
-                dice, prediction, mask = training_processing.compute_dice(prediction,
-                                                                          mask)
-                image = image.cpu().numpy()
-                for img_slice, pred_slice, mask_slice in zip(image, prediction, mask):
-                    img_slice = img_slice.squeeze(0)
-                    print("Input shape: ", img_slice.shape)
-                    visualization.show_image2d(img_slice, "input")
-                    print("Pred shape: ", pred_slice.shape)
-                    visualization.show_image2d(pred_slice, "pred")
-                    print("Label shape: ", mask_slice.shape)
-                    visualization.show_image2d(mask_slice, "label")
-                    cv2.waitKey(0)
-                cv2.destroyAllWindows()
-
-                print(dice)
-
     if args.compute_dset_mean_std:
+        print("Computing dataset mean and std!")
         images = training_dataloader.dataset.get_images()
         mean, std = data_normalization.per_dataset_norm(images)
         print("Dataset mean and standard deviation: ", mean, std)
@@ -135,7 +127,7 @@ def validate_args(args):
         raise AssertionError('Invalid dataset name')
     if args.view_results:
         for name in args.view_results[:-1]:
-            if name not in constants.model_ids:
+            if name not in constants.segmentor_ids:
                 raise AssertionError("Invalid model id")
 
 

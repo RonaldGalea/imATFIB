@@ -1,5 +1,9 @@
 from medpy.metric.binary import dc
 import numpy as np
+import torch
+
+
+from utils.training_utils.box_utils import get_intersection_area, get_bbox_area, get_IoU, convert_offsets_to_bboxes, wh2corners
 
 
 def metrics(img_gt, img_pred, n_classes):
@@ -49,3 +53,47 @@ def metrics(img_gt, img_pred, n_classes):
         res += [dice]
 
     return np.array(res)
+
+
+def harsh_IOU(pred, target, heart_presence, anchor):
+    """
+    Regular IOU
+
+    Args:
+    pred: batch x 4 tensor
+    target: batch x 4 tensor
+    """
+    # only keep images having a heart instance
+    pred = pred[heart_presence.to(torch.bool)]
+    target = target[heart_presence.to(torch.bool)]
+
+    # convert model outputs to ((x_ctr, y_ctr, width, height)), then (x_left, y_left, x_right, y_right)
+    pred = convert_offsets_to_bboxes(pred, anchor)
+    pred = wh2corners(pred)
+
+    intersection_area = get_intersection_area(pred, target)
+
+    iou = get_IoU(pred, target, intersection_area)
+    mean_iou = torch.mean(iou)
+
+    return mean_iou
+
+
+def f1_score(pred, targ):
+    """
+    Args:
+    pred: batch x 1 tensor
+    target: batch x 1 tensor
+    """
+    pred = pred.sigmoid()
+    pred[pred > 0.5] = 1
+
+    positives = targ == 1
+    tp = pred[positives].sum()
+    fp = pred[~positives].sum()
+    fn = (1 - pred[positives]).sum()
+
+    precision = tp/(tp+fp)
+    recall = tp/(tp+fn)
+
+    return 2 * (precision * recall) / (precision + recall)

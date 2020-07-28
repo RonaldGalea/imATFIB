@@ -69,7 +69,6 @@ def compute_loc_loss(pred, target, heart_presence, anchor, encompassing_penalty_
     # finally, only take loss out of samples where the heart is present
     # this has dim batch x 1
     return (loc_loss * heart_presence).mean()
-    # return torch.tensor(0).to(general_config.device)
 
 
 def compute_confidence_loss(pred, target, weight):

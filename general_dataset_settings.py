@@ -9,10 +9,10 @@ imatfib_dataset_std = 139.08557576261646
 # imatfib_y_roi_min = 62
 
 # imatfib global roi bounds computed for 512x512 default height
-imatfib_x_roi_max = 503.0
-imatfib_x_roi_min = 30.0
-imatfib_y_roi_max = 391.0
-imatfib_y_roi_min = 124.0
+imatfib_x_roi_max = 503.0 / 2
+imatfib_x_roi_min = 30.0 / 2
+imatfib_y_roi_max = 391.0 / 2
+imatfib_y_roi_min = 124.0 / 2
 imatfib_anchor = [imatfib_x_roi_min, imatfib_y_roi_min, imatfib_x_roi_max, imatfib_y_roi_max]
 
 # ACDC

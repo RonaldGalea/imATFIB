@@ -3,11 +3,12 @@ from utils.training_utils import prints
 
 
 class Model_Freezer():
-    def __init__(self, model, optimizer, params):
+    def __init__(self, model, optimizer, params, config):
         self.model = model
         self.optimizer = optimizer
         self.params = params
-        self.total_layers = 11 if params.model_id == "2D_Unet" else 5
+        self.config = config
+        self.total_layers = 11 if config.model_id == "2D_Unet" else 5
         self.n_unfrozen = 0
 
     def freeze(self):
@@ -50,7 +51,7 @@ class Model_Freezer():
             for idx, child in enumerate(self.model.children()):
                 # actually need the penultimate layer trainable too in the case of unet,
                 # otherwise only 130 params are left to train, which is a waste
-                if self.params.model_id == "2D_Unet" and idx == 9:
+                if self.config.model_id == "2D_Unet" and idx == 9:
                     break
                 for param in child.parameters():
                     param.requires_grad = False

@@ -16,10 +16,11 @@ class Model_Statistics():
     Note: this prints statistics averaged per slice, not per volume, which can be much different
     """
 
-    def __init__(self, loader_size, params, type, model=None):
+    def __init__(self, loader_size, params, config, type, model=None):
         self.loader_size = loader_size
         self.params = params
-        self.print_step = loader_size // general_config.statistics_print_step + 1
+        self.config = config
+        self.print_step = loader_size // config.statistics_print_step + 1
         self.type = type
         self.model = model
 
@@ -57,14 +58,14 @@ class Model_Statistics():
 
 
 class Segmentor_Statistics(Model_Statistics):
-    def __init__(self, loader_size, params, n_classes, type, model=None):
-        super(Segmentor_Statistics, self).__init__(loader_size, params, type, model=None)
+    def __init__(self, loader_size, params, config, n_classes, type, model=None):
+        super(Segmentor_Statistics, self).__init__(loader_size, params, config, type, model=model)
         self.n_classes = n_classes
-        if self.params.dataset == "imatfib-whs":
+        if self.config.dataset == "imatfib-whs":
             self.hearts = ["whole"]
-        elif self.params.dataset == "ACDC_training":
+        elif self.config.dataset == "ACDC_training":
             self.hearts = constants.acdc_heart
-        elif self.params.dataset == "mmwhs":
+        elif self.config.dataset == "mmwhs":
             self.hearts = constants.mmwhs_heart
         self.reset(0)
 
@@ -111,8 +112,8 @@ class Segmentor_Statistics(Model_Statistics):
 
 
 class Detection_Statistics(Model_Statistics):
-    def __init__(self, loader_size, params, type, model=None):
-        super(Detection_Statistics, self).__init__(loader_size, params, type, model=None)
+    def __init__(self, loader_size, params, config, type, model=None):
+        super(Detection_Statistics, self).__init__(loader_size, params, config, type, model=model)
 
     def update(self, loss, metrics):
         iou, f1 = metrics

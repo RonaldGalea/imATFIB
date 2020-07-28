@@ -1,3 +1,5 @@
+import cv2
+
 from torch.utils.data import Dataset
 
 import general_config
@@ -10,7 +12,7 @@ class MRI_Dataset(Dataset):
     Base Dataset class, MRI_Dataset_2d and MRI_Dataset_3d inherit from this
     """
 
-    def __init__(self, dset_name, dset_type, paths, params):
+    def __init__(self, dset_name, dset_type, paths, params, config):
         """
         Args:
         dset_name - string: name of the dataset
@@ -21,12 +23,13 @@ class MRI_Dataset(Dataset):
         self.dset_name = dset_name
         self.dset_type = dset_type
         self.paths = paths
-        self.seg_type = general_config.seg_type
+        self.seg_type = config.seg_type
         self.norm_type = params.norm_type
         self.params = params
-        self.augmentor = data_augmentation.Augmentor(params)
+        self.config = config
+        self.augmentor = data_augmentation.Augmentor(params, config)
         self.load_everything_in_memory()
-        if general_config.visualize_dataset:
+        if config.visualize_dataset:
             self.visualize_dataset_samples()
 
     def __len__(self):
@@ -44,6 +47,8 @@ class MRI_Dataset(Dataset):
                 visualization.visualize_img_mask_pair(image, mask)
             else:
                 visualization.visualize_img_mask_pair_2d(image, mask)
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
             exit = input("exit? y/n")
             if exit == 'y':
                 return

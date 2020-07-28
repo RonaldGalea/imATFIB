@@ -4,7 +4,7 @@ import torch.nn as nn
 
 import general_config
 import constants
-from experiments import general_dataset_settings
+import general_dataset_settings
 from models.model_parts import mobilenetv2, resnet
 from utils.training_utils import box_utils
 
@@ -15,9 +15,10 @@ class ROI_Detector(nn.Module):
     being present in the image
     """
 
-    def __init__(self, params, n_channels=1):
+    def __init__(self, params, config, n_channels=1):
         super(ROI_Detector, self).__init__()
         self.params = params
+        self.config = config
         self.get_anchor()
         self.get_backbone(n_channels)
 
@@ -65,9 +66,9 @@ class ROI_Detector(nn.Module):
         Will be the global encompassing box on the training set
         Anchor will be in center_x, center_y, width, height format
         """
-        if self.params.dataset == constants.imatfib_root_dir:
+        if self.config.dataset == constants.imatfib_root_dir:
             self.anchor = torch.tensor(general_dataset_settings.imatfib_anchor)
-        elif self.params.dataset == constants.acdc_root_dir:
+        elif self.config.dataset == constants.acdc_root_dir:
             self.anchor = torch.tensor(general_dataset_settings.acdc_anchor)
         self.anchor = self.anchor.unsqueeze(0)
 
@@ -76,14 +77,11 @@ class ROI_Detector(nn.Module):
         self.anchor = box_utils.corners_to_wh(self.anchor).to(general_config.device)
 
     def get_backbone(self, n_channels):
-        if self.params.model_id == constants.resnet18_detector:
+        if self.config.model_id == constants.resnet18_detector:
             self.backbone = resnet.resnet18(initial_channels=n_channels,
                                             shrinking_factor=self.params.shrinking_factor)
             self.in_channels = int(512 / self.params.shrinking_factor)
-        elif self.params.model_id == constants.mobilenet_detector:
-            self.backbone = mobilenetv2.MobileNetV2(initial_channels=n_channels)
-            self.in_channels = 320
-        elif self.params.model_id == constants.resnet50_detector:
+        elif self.config.model_id == constants.resnet50_detector:
             self.backbone = resnet.resnext50_32x4d(initial_channels=n_channels,
                                                    replace_stride_with_dilation=self.params.replace_stride,
                                                    shrinking_factor=self.params.shrinking_factor,

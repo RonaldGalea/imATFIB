@@ -1,5 +1,5 @@
 """
-Prepare models and data for visualization of results
+Prepare models for visualization of results or ensembling
 """
 import torch
 
@@ -24,22 +24,22 @@ def prepare(model_ids, dataset_name):
     validation_loader
     params
     """
-    models = []
+    models, params_list, configs_list = [], [], []
     for id in model_ids:
         params = Params(constants.params_path.format(dataset_name, id))
+        config = Params(constants.config_path.format(dataset_name, id))
         validate_params(params)
         print("Constructing model: ", id)
-        model = training_setup.model_setup(dataset_name, params)
+        model = training_setup.model_setup(dataset_name, params, config)
         # in this case, model id is equal to exp name
         training_setup.load_model_weights(model, dataset_name, id)
         model.eval()
         prints.print_trained_parameters_count(model)
         models.append(model)
+        params_list.append(params)
+        configs_list.append(config)
 
-    # all models should have the same dataset related settings, so any params should do
-    validation_loader = training_setup.prepare_val_loader(dataset_name, params)
-
-    return models, validation_loader, params
+    return models, params_list, configs_list
 
 
 def ensemble_inference(model_ids, dataset_name):

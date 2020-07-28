@@ -6,15 +6,15 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 import general_config
-import constants
 from utils.training_utils import training_processing
 
 
-height, width, matplot = general_config.height, general_config.width, general_config.matplot
-max_plot_nr, exist_label = general_config.max_plot_nr, general_config.exist_label
+height, width = 400, 400
+exist_label = False
 
 
-def visualize_validation_dataset(dataloader, models, params, model_names, show):
+# have each models results saved in a list, then do whatever manipulation needed with these lists
+def visualize_validation_dataset(dataloader, models, params, config, model_names, show):
     """
     Args:
     dataloader: validation dataloader, has to return one volume at a time
@@ -69,8 +69,10 @@ def visualize_validation_dataset(dataloader, models, params, model_names, show):
             image_list = [inp, msk_green]
             name_list = ["Input", "Mask"]
             total += 1
-            save_id = "results/" + params.roi_crop + "".join(model_names) + "/" + "_" + \
+            save_id = "results/" + config.dataset + "/" + params.roi_crop + "".join(model_names) + "/" + "_" + \
                 str(total) + "_" + str(idx) + "_" + str(vol_idx)
+
+            print(save_id)
 
             overlays, overlay_names = [], []
             for pred, dice, model_name in zip(final_preds, all_dices, model_names):
@@ -109,43 +111,13 @@ def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask', us
         image = augmented['image']
         mask = augmented['mask']
 
-    print("bef", np.unique(mask))
-    image = (image * (255/image.max())).astype(np.uint8)
-    # if not (420 in np.unique(mask) and 421 in np.unique(mask)):
-    #     return
-    # show_mmwhs_classes(mask, image, img_name, mask_name)
-    mask = (mask * (255/mask.max())).astype(np.uint8)
-    print("aft", np.unique(mask))
+    image = (image * (255/(image.max()+1))).astype(np.uint8)
+    mask = (mask * (255/(mask.max()+1))).astype(np.uint8)
     cv2.imshow(img_name, image)
     cv2.imshow(mask_name, mask)
-    # show_acdc_classes(mask, image, img_name, mask_name)
     if wait:
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-
-
-def show_acdc_classes(mask, image, img_name, mask_name):
-    lvc, lvmyo, rvc = np.zeros((*mask.shape,)), np.zeros((*mask.shape,)), np.zeros((*mask.shape,))
-    lvc[mask == 85] = 75
-    lvmyo[mask == 170] = 150
-    rvc[mask == 255] = 225
-    mask = (mask * (255/mask.max())).astype(np.uint8)
-    cv2.imshow(img_name, image)
-    cv2.imshow(mask_name, mask)
-    cv2.imshow(mask_name + "lvc", lvc)
-    cv2.imshow(mask_name + "lvmyo", lvmyo)
-    cv2.imshow(mask_name + "rvc", rvc)
-
-
-def show_mmwhs_classes(mask, image, img_name, mask_name):
-    lvc, lvmyo = np.zeros((*mask.shape,)), np.zeros((*mask.shape,))
-    lvc[mask == 421] = 75
-    lvmyo[mask == 420] = 150
-    mask = (mask * (255/mask.max())).astype(np.uint8)
-    cv2.imshow(img_name, image)
-    cv2.imshow(mask_name, mask)
-    cv2.imshow(mask_name + "?", lvc)
-    cv2.imshow(mask_name + "??", lvmyo)
 
 
 def visualize_img_mask_pair(image_3d, mask_3d):
@@ -218,14 +190,3 @@ def show_images(images, cols=1, titles=None, save_id=None):
     else:
         plt.show()
     plt.close()
-
-
-def show_image2d(image, img_name="img", box_coords=None, unnorm=False):
-    if unnorm:
-        image = (image * general_config.dataset_std) + general_config.dataset_mean
-    image = (image * (255/(image.max()+1))).astype(np.uint8)
-    print("IN visu: ", type(image), image.shape, image.dtype)
-    if box_coords:
-        (x1, y1), (x2, y2) = box_coords
-        image = cv2.rectangle(image, (x1, y1), (x2, y2), 255, 1)
-    cv2.imshow(img_name, image)

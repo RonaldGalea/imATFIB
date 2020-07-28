@@ -1,8 +1,9 @@
+import constants
 from utils.dataset_utils import reading
 from data_loading import dataset_2d, dataset_3d
 
 
-def train_val(dataset_name, params):
+def train_val(dataset_name, params, config):
     """
     Args:
     dataset_name: string - root training dataset directory
@@ -11,17 +12,41 @@ def train_val(dataset_name, params):
     """
     split_dict = reading.get_train_val_paths(dataset_name, params.k_split)
 
-    training_dataset = dataset_2d.MRI_Dataset_2d(dset_name=dataset_name, dset_type='train',
-                                                 paths=split_dict['train'], params=params)
-    validation_dataset = dataset_3d.MRI_Dataset_3d(dset_name=dataset_name, dset_type='val',
-                                                   paths=split_dict['val'], params=params)
+    if config.model_id in constants.segmentor_ids:
+        training_dataset = dataset_2d.MRI_Dataset_2d_Segmentation(dset_name=dataset_name,
+                                                                  dset_type='train',
+                                                                  paths=split_dict['train'],
+                                                                  params=params, config=config)
+        validation_dataset = dataset_3d.MRI_Dataset_3d_Segmentation(dset_name=dataset_name,
+                                                                    dset_type='val',
+                                                                    paths=split_dict['val'],
+                                                                    params=params, config=config)
+    else:
+        training_dataset = dataset_2d.MRI_Dataset_2d_Detection(dset_name=dataset_name,
+                                                               dset_type='train',
+                                                               paths=split_dict['train'],
+                                                               params=params, config=config)
+        validation_dataset = dataset_3d.MRI_Dataset_3d_Detection(dset_name=dataset_name,
+                                                                 dset_type='val',
+                                                                 paths=split_dict['val'],
+                                                                 params=params, config=config)
 
     return training_dataset, validation_dataset
 
 
-def create_val_set(dataset_name, params):
+def create_val_set(dataset_name, params, config):
     split_dict = reading.get_train_val_paths(dataset_name, params.k_split)
 
-    validation_dataset = dataset_3d.MRI_Dataset_3d(dset_name=dataset_name, dset_type='val',
-                                                   paths=split_dict['val'], params=params)
+    if config.model_id in constants.segmentor_ids:
+        validation_dataset = dataset_3d.MRI_Dataset_3d_Segmentation(dset_name=dataset_name,
+                                                                    dset_type='val',
+                                                                    paths=split_dict['val'],
+                                                                    params=params,
+                                                                    config=config)
+    else:
+        validation_dataset = dataset_3d.MRI_Dataset_3d_Detection(dset_name=dataset_name,
+                                                                 dset_type='val',
+                                                                 paths=split_dict['val'],
+                                                                 params=params,
+                                                                 config=config)
     return validation_dataset

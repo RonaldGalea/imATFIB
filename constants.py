@@ -11,6 +11,7 @@ per_slice = "per_slice"
 per_dataset = "per_dataset"
 norm_types = [per_slice, per_dataset]
 
+config_path = "experiments/{}/{}/config.json"
 params_path = "experiments/{}/{}/params.json"
 stats_path = "experiments/{}/{}/stats.json"
 model_path = "experiments/{}/{}/model_checkpoint.pt"
@@ -20,10 +21,9 @@ deeplab = "DeepLabV3_plus"
 resnext_deeplab = "ResNeXt_DeepLabV3_plus"
 segmentor_ids = [unet, deeplab, resnext_deeplab]
 
-mobilenet_detector = "mobilenet_detector"
 resnet18_detector = "resnet18_detector"
 resnet50_detector = "resnet50_detector"
-detectors = [mobilenet_detector, resnet18_detector, resnet50_detector]
+detectors = [resnet18_detector, resnet50_detector]
 
 acdc_heart = ["LVC", "LVMyo", "RVC"]
 mmwhs_heart = ["LVC", "LVMyo", "RVC", "LA", "RA", "AA", "PA"]
@@ -36,8 +36,7 @@ optimizers = ["adam"]
 
 no_roi_extraction = "no_roi"
 relative_roi_extraction = "relative_roi"
-global_roi_extraction = "global_roi"
-roi_types = [no_roi_extraction, relative_roi_extraction, global_roi_extraction]
+roi_types = [no_roi_extraction, relative_roi_extraction]
 
 no_augmentation = "no_aug"
 simple_augmentation = "simple"
@@ -47,9 +46,9 @@ aug_types = [no_augmentation, simple_augmentation, heavy_augmentation]
 results_overlay_gt = "gt_over"
 results_overlay_inp = "inp_over"
 
-load_training = "resume_training"
+load_simple = "load_simple"
 load_transfer = "transfer_learning"
-load_types = [load_training, load_transfer]
+load_types = [load_simple, load_transfer]
 
 classifier_freeze = "classifier_layer"
 progressive_freeze = "all_layers"

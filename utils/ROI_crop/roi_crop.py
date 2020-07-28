@@ -9,7 +9,7 @@ import general_config
 from utils import visualization
 
 
-def get_dataset_gt_bounds(dataset_name, params):
+def get_dataset_gt_bounds(dataset_name, params, config):
     """
     Args:
     dataset_name: string - name of the dataset to process
@@ -24,7 +24,7 @@ def get_dataset_gt_bounds(dataset_name, params):
     x_max, x_min, y_max, y_min = -1, math.inf, -1, math.inf
     for path in all_samples:
         image, mask, _ = reading.get_img_mask_pair(image_path=path, dset_name=dataset_name,
-                                                   seg_type=general_config.seg_type)
+                                                   seg_type=config.seg_type)
 
         # do all computation relative to the actual inference size
         mask = cv2.resize(mask, dsize=(params.default_height, params.default_width))
@@ -130,11 +130,11 @@ def get_minimum_size(x_min, y_min, x_max, y_max, params):
     return x_min, y_min, x_max, y_max
 
 
-def extract_ROI_3d(volume, mask, params):
+def extract_ROI_3d(volume, mask, params, config):
     roi_volume = []
     orig_roi_infos = []
     for i, (image_slice, mask_slice) in enumerate(zip(volume, mask)):
-        box_coords = compute_ROI_coords(mask_slice, params, validation=True)
+        box_coords = compute_ROI_coords(mask_slice, params, config, validation=True)
         roi = extract_ROI(image_slice, box_coords)
         orig_roi_infos.append(box_coords)
 
@@ -165,7 +165,7 @@ def extract_ROI_from_pred(volume, params, predicted_coordinates):
     return roi_volume, orig_roi_infos
 
 
-def compute_ROI_coords(mask, params, validation=False):
+def compute_ROI_coords(mask, params, config, validation=False):
     """
     mask: ndarray: 2D label image, used for extracting relativ roi coords
     validation: bool: relatvie roi extraction differs
@@ -175,29 +175,17 @@ def compute_ROI_coords(mask, params, validation=False):
     returns: tuple of box coords
     """
     x_min, y_min, x_max, y_max = get_mask_bounds(mask, params)
-
-    # pos = mask == 1
-    # dummy = np.zeros((mask.shape))
-    # dummy[pos] = 255.0
-
-    # dummy = cv2.rectangle(dummy, (x_min, y_min), (x_max, y_max), 50, 1)
-
     x_min, y_min, x_max, y_max = get_minimum_size(x_min, y_min, x_max, y_max, params)
 
-    # dummy = cv2.rectangle(dummy, (x_min, y_min), (x_max, y_max), 150, 3)
-
-    if params.model_id in constants.segmentor_ids:
+    if config.model_id in constants.segmentor_ids:
         if params.relative_roi_perturbation:
             x_min, y_min, x_max, y_max = add_perturbation(
                 x_min, y_min, x_max, y_max, params, validation)
 
-    elif params.model_id in constants.detectors:
+    elif config.model_id in constants.detectors:
+        # margin should be added before minimum size
         x_min, y_min, x_max, y_max = add_detection_error_margin(
             x_min, y_min, x_max, y_max, params)
-
-    # dummy = cv2.rectangle(dummy, (x_min, y_min), (x_max, y_max), 255, 5)
-    # visualization.visualize_img_mask_pair_2d(
-    #     dummy, dummy, "after_img", "after_mask", use_orig_res=True, wait=True)
 
     return (x_min, y_min, x_max, y_max)
 

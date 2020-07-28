@@ -15,7 +15,7 @@ import torchvision.transforms.functional as F
 
 import constants
 from utils.ROI_crop import roi_crop
-from experiments import general_dataset_settings
+import general_dataset_settings
 
 
 class Augmentor():
@@ -23,8 +23,9 @@ class Augmentor():
     Handles data preprocessing and augmentation
     """
 
-    def __init__(self, params):
+    def __init__(self, params, config):
         self.params = params
+        self.config = config
         self.plain_resize = Resize(height=params.default_height, width=params.default_width)
         self.random_crop_resize = RandomResizedCrop(height=params.default_height,
                                                     width=params.default_width,
@@ -37,7 +38,7 @@ class Augmentor():
         image, mask = self.resizer(image=image, mask=mask).values()
         # extract roi
         if self.params.roi_crop != constants.no_roi_extraction:
-            box_coords = roi_crop.compute_ROI_coords(mask, self.params)
+            box_coords = roi_crop.compute_ROI_coords(mask, self.params, self.config)
             image = roi_crop.extract_ROI(image, box_coords)
             mask = roi_crop.extract_ROI(mask, box_coords)
 
@@ -57,7 +58,7 @@ class Augmentor():
         if self.params.data_augmentation != constants.no_augmentation:
             image, mask = self.aug(image=image, mask=mask).values()
         # need to return the ROI coords and the binary value whether the heart is present
-        (x_min, y_min, x_max, y_max) = roi_crop.compute_ROI_coords(mask, self.params)
+        (x_min, y_min, x_max, y_max) = roi_crop.compute_ROI_coords(mask, self.params, self.config)
         score = self.no_roi_check(x_min, y_min, x_max, y_max)
         return image, (x_min, y_min, x_max, y_max, score)
 
@@ -65,14 +66,14 @@ class Augmentor():
         reconstruction_info = None
         volume, resized_mask = self.resize_volume_HW(volume, mask)
         if self.params.roi_crop != constants.no_roi_extraction:
-            volume, reconstruction_info = roi_crop.extract_ROI_3d(volume, resized_mask, self.params)
+            volume, reconstruction_info = roi_crop.extract_ROI_3d(volume, resized_mask, self.params, self.config)
         return volume, reconstruction_info
 
     def detector_valid_data(self, volume, mask):
         volume, resized_mask = self.resize_volume_HW(volume, mask)
         coords_n_scores = []
         for slice in resized_mask:
-            (x_min, y_min, x_max, y_max) = roi_crop.compute_ROI_coords(slice, self.params, True)
+            (x_min, y_min, x_max, y_max) = roi_crop.compute_ROI_coords(slice, self.params, self.config, True)
             score = self.no_roi_check(x_min, y_min, x_max, y_max)
             coords_n_scores.append((x_min, y_min, x_max, y_max, score))
 
@@ -131,11 +132,11 @@ class Augmentor():
             starting_aug.extend(heavy_aug)
         self.aug = Compose(starting_aug)
 
-        if self.params.dataset == constants.imatfib_root_dir:
+        if self.config.dataset == constants.imatfib_root_dir:
             self.dataset_mean = general_dataset_settings.imatfib_dataset_mean
             self.dataset_std = general_dataset_settings.imatfib_dataset_std
 
-        elif self.params.dataset == constants.acdc_root_dir:
+        elif self.config.dataset == constants.acdc_root_dir:
             self.dataset_mean = general_dataset_settings.acdc_dataset_mean
             self.dataset_std = general_dataset_settings.acdc_dataset_std
 

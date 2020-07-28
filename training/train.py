@@ -17,12 +17,14 @@ from utils import metrics
 
 class Model_Trainer():
 
-    def __init__(self, model, training_dataloader, validation_dataloader, optimizer, params, stats,
-                 dataset_name, start_epoch=0, experiment_info="no_info", experiment_name="no_name"):
+    def __init__(self, model, training_dataloader, validation_dataloader, optimizer, params, config,
+                 stats, dataset_name, start_epoch=0, experiment_info="no_info",
+                 experiment_name="no_name"):
         self.model = model
         self.training_dataloader = training_dataloader
         self.validation_dataloader = validation_dataloader
         self.params = params
+        self.config = config
         self.stats = stats
         self.start_epoch = start_epoch
         self.dataset_name = dataset_name
@@ -31,7 +33,7 @@ class Model_Trainer():
         self.writer = None
         self.optimizer = optimizer
         self.lr_handling = training_setup.lr_decay_setup(len(training_dataloader), params)
-        self.model_freezer = freezer.Model_Freezer(model, optimizer, params)
+        self.model_freezer = freezer.Model_Freezer(model, optimizer, params, config)
 
     def setup(self):
         if hasattr(self.params, "freeze_type"):
@@ -57,11 +59,11 @@ class Model_Trainer():
             self.check_evaluation_step(epoch)
 
     def check_evaluation_step(self, epoch):
-        if (epoch + 1) % general_config.evaluation_step == 0 or epoch == 0:
+        if (epoch + 1) % self.config.evaluation_step == 0 or epoch == 0:
             # init writer just as model is actually save to stop spamming empty stuff
             if self.writer is None:
                 self.writer = SummaryWriter(log_dir="runs/"+self.experiment_info,
-                                            filename_suffix=self.params.model_id)
+                                            filename_suffix=self.config.model_id)
             self.evaluation(epoch)
 
     def evaluation(self, epoch):
@@ -123,18 +125,21 @@ class Segmentation_Trainer(Model_Trainer):
     Class that handles training of a segmentation model
     """
 
-    def __init__(self, model, training_dataloader, validation_dataloader, optimizer, params, stats,
-                 dataset_name, start_epoch=0, experiment_info="no_info", experiment_name="no_name"):
+    def __init__(self, model, training_dataloader, validation_dataloader, optimizer, params, config,
+                 stats, dataset_name, start_epoch=0, experiment_info="no_info",
+                 experiment_name="no_name"):
         super(Segmentation_Trainer, self).__init__(model, training_dataloader,
                                                    validation_dataloader,
-                                                   optimizer, params, stats, dataset_name,
+                                                   optimizer, params, config, stats, dataset_name,
                                                    start_epoch, experiment_info, experiment_name)
 
         self.train_statistics = model_statistics.Segmentor_Statistics(len(training_dataloader),
-                                                                      params, self.model.n_classes - 1,
+                                                                      params, config,
+                                                                      self.model.n_classes - 1,
                                                                       'train', self.model)
         self.val_statistics = model_statistics.Segmentor_Statistics(len(validation_dataloader),
-                                                                    params, self.model.n_classes - 1,
+                                                                    params, config,
+                                                                    self.model.n_classes - 1,
                                                                     'val')
 
         # weight = torch.tensor([0.05, 0.95]).to(general_config.device)
@@ -185,17 +190,19 @@ class Detector_Trainer(Model_Trainer):
     Class that handles training of a detection model
     """
 
-    def __init__(self, model, training_dataloader, validation_dataloader, optimizer, params, stats,
-                 dataset_name, start_epoch=0, experiment_info="no_info", experiment_name="no_name"):
+    def __init__(self, model, training_dataloader, validation_dataloader, optimizer, params, config,
+                 stats, dataset_name, start_epoch=0, experiment_info="no_info",
+                 experiment_name="no_name"):
         super(Detector_Trainer, self).__init__(model, training_dataloader,
                                                validation_dataloader,
-                                               optimizer, params, stats, dataset_name,
+                                               optimizer, params, config, stats, dataset_name,
                                                start_epoch, experiment_info, experiment_name)
 
         self.train_statistics = model_statistics.Detection_Statistics(len(training_dataloader),
-                                                                      params, 'train', self.model)
+                                                                      params, config, 'train',
+                                                                      self.model)
         self.val_statistics = model_statistics.Detection_Statistics(len(validation_dataloader),
-                                                                    params, 'val')
+                                                                    params, config, 'val')
 
         self.encompassing_penalty_factor = 3
         # much more positive than negative examples

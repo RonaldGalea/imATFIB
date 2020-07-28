@@ -4,13 +4,13 @@ import numpy as np
 import general_config
 import ACDC_metrics
 from utils.training_utils import training_processing
-from utils import prepare_models_and_data
+from utils import prepare_models
 
 
 def process_and_save(model_id, dataset_name):
     """
     """
-    models, validation_dataloader, params = prepare_models_and_data.prepare(model_id, dataset_name)
+    models, validation_dataloader, params = prepare_models.prepare(model_id, dataset_name)
     model = models[0]
     for batch_idx, (volume, mask, r_info, header_info) in enumerate(validation_dataloader):
         volume, mask = volume.to(general_config.device), mask.to(general_config.device)

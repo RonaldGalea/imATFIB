@@ -116,51 +116,61 @@ class Detection_Statistics(Model_Statistics):
         super(Detection_Statistics, self).__init__(loader_size, params, config, type, model=model)
 
     def update(self, loss, metrics):
-        iou, f1 = metrics
-        loc_loss, score_loss = loss
+        iou, iou_harsh, f1 = metrics
+        loc_loss, score_loss, box_conf_loss = loss
         self.batch_count += 1
         self.iou += iou
+        self.iou_harsh += iou_harsh
         self.f1 += f1
         self.loc_loss += loc_loss
         self.score_loss += score_loss
+        self.box_conf_loss += box_conf_loss
 
         if (self.batch_count + 1) % self.print_step == 0:
             self.print_batches_statistics()
 
     def update_stats(self, stats, train_metrics):
         val_iou = self.iou / self.batch_count
+        val_iou_harsh = self.iou_harsh / self.batch_count
         val_f1 = self.f1 / self.batch_count
-        train_iou, train_f1 = train_metrics
+        train_iou, train_iou_harsh, train_f1 = train_metrics
 
         stats.dict['iou_val'] = val_iou
+        stats.dict['iou_val_harsh'] = val_iou_harsh
         stats.dict['f1_val'] = val_f1
         stats.dict['iou_train'] = train_iou
+        stats.dict['iou_train_harsh'] = train_iou_harsh
         stats.dict['f1_train'] = train_f1
 
+        # use regular iou to decide best model
         stats.val = (val_iou + val_f1) / 2
         stats.train = (train_iou + train_f1) / 2
 
     def print_metrics_n_loss(self):
         print("Mean IOU: ", self.iou / self.batch_count)
+        print("Mean harsh IOU: ", self.iou_harsh / self.batch_count)
         print("Mean F1: ", self.f1 / self.batch_count)
         print("Localization Loss: ", self.loc_loss / self.batch_count)
         print("Score Loss: ", self.score_loss / self.batch_count)
-        print("Mean Loss: ", (self.loc_loss + self.score_loss) / self.batch_count, "\n")
+        print("Box conf Loss: ", self.box_conf_loss / self.batch_count)
+        print("Mean Loss: ", (self.loc_loss + self.score_loss + self.box_conf_loss) / self.batch_count, "\n")
 
     def get_metrics(self):
-        return self.iou / self.batch_count, self.f1 / self.batch_count
+        return self.iou / self.batch_count, self.iou_harsh / self.batch_count, self.f1 / self.batch_count
 
     def get_performance(self):
         return (self.iou + self.f1) / (2 * self.batch_count)
 
     def get_loss(self):
-        return [self.loc_loss / self.batch_count, self.score_loss / self.batch_count]
+        return [self.loc_loss / self.batch_count, self.score_loss / self.batch_count, self.box_conf_loss / self.batch_count]
 
     def reset(self, epoch):
         self.start = time.time()
         self.loc_loss = 0
         self.score_loss = 0
+        self.box_conf_loss = 0
         self.iou = 0
+        self.iou_harsh = 0
         self.f1 = 0
         self.batch_count = 0
         self.epoch = epoch

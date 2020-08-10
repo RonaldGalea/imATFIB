@@ -22,17 +22,18 @@ class ROI_Detector(nn.Module):
         self.get_anchor()
         self.get_backbone(n_channels)
 
-        self.regressor = nn.Sequential(nn.Conv2d(self.in_channels, 128, kernel_size=3, stride=1, padding=1, bias=False),
-                                       nn.BatchNorm2d(128),
-                                       nn.ReLU(),
-                                       nn.Dropout(0.5),
-                                       nn.Conv2d(128, 128, kernel_size=3,
-                                                 stride=1, padding=1, bias=False),
-                                       nn.BatchNorm2d(128),
-                                       nn.ReLU(),
-                                       nn.Dropout(0.1))
+        self.coordinator = nn.Sequential(nn.Conv2d(self.in_channels, 128, kernel_size=3, stride=1, padding=1, bias=False),
+                                         nn.BatchNorm2d(128),
+                                         nn.ReLU(),
+                                         nn.Dropout(0.5),
+                                         nn.Conv2d(128, 128, kernel_size=3,
+                                                   stride=1, padding=1, bias=False),
+                                         nn.BatchNorm2d(128),
+                                         nn.ReLU(),
+                                         nn.Dropout(0.1))
 
-        self.predict_coords = nn.Linear(128, 4)
+        self.predict_coords = nn.Linear(128, 4 * len(self.anchors_xyxy))
+        self.predict_confidences = nn.Linear(128, 1 * len(self.anchors_xyxy))
 
         self.scorer = nn.Sequential(nn.Conv2d(self.in_channels, 128, kernel_size=3, stride=1, padding=1, bias=False),
                                     nn.BatchNorm2d(128),
@@ -47,34 +48,31 @@ class ROI_Detector(nn.Module):
         self.predict_score = nn.Linear(128, 1)
 
     def forward(self, x):
+        """
+        returns:
+        ROI_coords: batch x #anchors x 4 tensor
+        ROI_confs: batch x #anchors tensor
+        score: batch tensor
+        """
         _, features = self.backbone(x)
 
-        ROI_coords = self.regressor(features)
-        ROI_coords = nn.functional.adaptive_avg_pool2d(
-            ROI_coords, 1).reshape(ROI_coords.shape[0], -1)
+        coords_features = self.coordinator(features)
+        coords_features = nn.functional.adaptive_avg_pool2d(
+            coords_features, 1).reshape(coords_features.shape[0], -1)
 
-        ROI_coords = self.predict_coords(ROI_coords)
+        # batch x #anchors x 4
+        ROI_coords = self.predict_coords(coords_features).view(features.shape[0], -1, 4)
+        ROI_confs = self.predict_confidences(coords_features)
 
         score = self.scorer(features)
         score = nn.functional.adaptive_avg_pool2d(score, 1).reshape(score.shape[0], -1)
         score = self.predict_score(score)
 
-        return ROI_coords, score
+        return ROI_coords, ROI_confs, score.squeeze(1)
 
     def get_anchor(self):
-        """
-        Will be the global encompassing box on the training set
-        Anchor will be in center_x, center_y, width, height format
-        """
-        if self.config.dataset == constants.imatfib_root_dir:
-            self.anchor = torch.tensor(general_dataset_settings.imatfib_anchor)
-        elif self.config.dataset == constants.acdc_root_dir:
-            self.anchor = torch.tensor(general_dataset_settings.acdc_anchor)
-        self.anchor = self.anchor.unsqueeze(0)
-
-        # normalize coords in 0 - 1 range
-        self.anchor = self.anchor / self.params.default_height
-        self.anchor = box_utils.corners_to_wh(self.anchor).to(general_config.device)
+        self.anchors_xyxy = (torch.tensor(self.params.anchors, dtype=torch.float32) / self.params.default_height).to(general_config.device)
+        self.anchors_xywh = box_utils.corners_to_wh(self.anchors_xyxy)
 
     def get_backbone(self, n_channels):
         if self.config.model_id == constants.resnet18_detector:

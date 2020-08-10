@@ -62,7 +62,8 @@ class Model_Trainer():
         if (epoch + 1) % self.config.evaluation_step == 0 or epoch == 0:
             # init writer just as model is actually save to stop spamming empty stuff
             if self.writer is None:
-                self.writer = SummaryWriter(log_dir="runs/"+self.experiment_info,
+                base_dir = "segmentors/" if self.config.model_id in constants.segmentor_ids else "detectors/"
+                self.writer = SummaryWriter(log_dir=base_dir+self.experiment_info,
                                             filename_suffix=self.config.model_id)
             self.evaluation(epoch)
 
@@ -154,6 +155,7 @@ class Segmentation_Trainer(Model_Trainer):
                 image, mask = image.to(general_config.device), mask.to(general_config.device)
                 loss_value, dice = self.process_sample_val(image, mask, r_info)
                 self.val_statistics.update(loss_value, dice)
+
         return self.post_validation_steps(epoch)
 
     def process_sample_train(self, image, mask):
@@ -173,7 +175,7 @@ class Segmentation_Trainer(Model_Trainer):
         return loss.item(), dice
 
     def process_sample_val(self, volume, mask, r_info):
-        processed_volume = training_processing.process_volume(self.model, volume, mask,
+        processed_volume = training_processing.process_volume(self.model, volume, mask.shape[1:],
                                                               self.params, r_info)
         loss = self.loss_function(processed_volume, mask)
         dice, _, _ = training_processing.compute_dice(processed_volume, mask)
@@ -221,49 +223,72 @@ class Detector_Trainer(Model_Trainer):
 
     def process_sample_train(self, image, target):
         """
-        target: batch x 5 tensor
+        target: batch x 5 x #anchors tensor
         """
-        ROI, heart_presence, ROI_pred, score_pred, [iou, f1] = self.process_sample(image, target)
+        ROI, heart_presence, gt_for_anc, ROI_pred, score_pred, ROI_conf_pred, [
+            iou, iou_harsh,  f1] = self.process_sample(image, target)
 
         self.optimizer.zero_grad()
-        loc_loss, score_loss = self.compute_losses(ROI, heart_presence, ROI_pred, score_pred)
-        loss = loc_loss + score_loss
+        loc_loss, score_loss, box_conf_loss = self.compute_losses(ROI, heart_presence, gt_for_anc,
+                                                                  ROI_pred, score_pred,
+                                                                  ROI_conf_pred)
+        loss = loc_loss + score_loss + box_conf_loss
         loss.backward()
         self.optimizer.step()
 
-        return [loc_loss.item(), score_loss.item()], [iou.item(), f1.item()]
+        return [loc_loss.item(), score_loss.item(), box_conf_loss.item()], [iou.item(),
+                                                                            iou_harsh.item(),
+                                                                            f1.item()]
 
     def process_sample_val(self, volume, target):
         """
         volume - (D, H, W) tensor
-        target - list of coords and score
+        target: batch x 5 + #anchors tensor
         """
         volume = volume.unsqueeze(1)
-        ROI, heart_presence, ROI_pred, score_pred, [iou, f1] = self.process_sample(volume, target)
-        loc_loss, conf_loss = self.compute_losses(ROI, heart_presence, ROI_pred, score_pred)
-        return [loc_loss.item(), conf_loss.item()], [iou.item(), f1.item()]
+        ROI, heart_presence, gt_for_anc, ROI_pred, score_pred, ROI_conf_pred, [
+            iou, iou_harsh, f1] = self.process_sample(volume, target)
+        loc_loss, score_loss, box_conf_loss = self.compute_losses(ROI, heart_presence, gt_for_anc,
+                                                                  ROI_pred, score_pred,
+                                                                  ROI_conf_pred)
+        return [loc_loss.item(), score_loss.item(), box_conf_loss.item()], [iou.item(),
+                                                                            iou_harsh.item(),
+                                                                            f1.item()]
 
     def process_sample(self, image, target):
-        # normaliza coords in 0 - 1 range
-        ROI = target[:, :4] / self.params.default_height
+        # scale coords in 0 - 1 range
+        ROI = target[:, :4]
 
         heart_presence = target[:, 4]
         heart_presence = heart_presence.to(torch.int64)
 
-        ROI_pred, score_pred = self.model(image)
+        gt_for_anc = target[:, 5:]
 
+        ROI_pred, ROI_conf_pred, score_pred = self.model(image)
         with torch.no_grad():
-            iou = metrics.harsh_IOU(ROI_pred, ROI, heart_presence, self.model.anchor)
+            # when computing metrics, only take the most confident prediction in consideration
+            # most confident per batch
+            most_conf = ROI_conf_pred.argmax(dim=1)
+
+            # batch x 4
+            confident_ROI_pred = ROI_pred[torch.arange(len(most_conf)), most_conf]
+
+            # batch x 4, get the corresponding anchor
+            anchors = self.model.anchors_xyxy[most_conf]
+            iou, iou_harsh = metrics.harsh_IOU(confident_ROI_pred, ROI, heart_presence, anchors)
             f1 = metrics.f1_score(score_pred, heart_presence)
 
-        return ROI, heart_presence, ROI_pred, score_pred, [iou, f1]
+        return ROI, heart_presence, gt_for_anc, ROI_pred, score_pred, ROI_conf_pred, [iou, iou_harsh, f1]
 
-    def compute_losses(self, ROI, heart_presence, ROI_pred, score_pred):
-        loc_loss = training_processing.compute_loc_loss(ROI_pred, ROI, heart_presence, self.model.anchor,
+    def compute_losses(self, ROI, heart_presence, gt_for_anc, ROI_pred, score_pred, ROI_conf_pred):
+        loc_loss = training_processing.compute_loc_loss(ROI_pred, ROI, heart_presence, gt_for_anc,
+                                                        self.model.anchors_xyxy,
                                                         self.encompassing_penalty_factor)
         score_loss = training_processing.compute_confidence_loss(score_pred, heart_presence,
                                                                  self.weight)
-        return loc_loss, score_loss
+        box_conf_loss = training_processing.compute_box_conf_loss(ROI_conf_pred, gt_for_anc)
+
+        return loc_loss, score_loss, box_conf_loss
 
     def update_tensorboard(self, val_metrics, val_loss, train_metrics, train_loss, epoch):
         prints.update_tensorboard_graphs_detection(self.writer, train_metrics, train_loss,

@@ -69,23 +69,29 @@ def update_tensorboard_graphs_segmentation(writer, train_dice, train_loss, val_d
 
 
 def update_tensorboard_graphs_detection(writer, train_metrics, train_loss, val_metrics, val_loss, epoch):
-    train_iou, train_f1 = train_metrics
-    val_iou, val_f1 = val_metrics
-    train_loc_loss, train_score_loss = train_loss
-    val_loc_loss, val_score_loss = val_loss
+    train_iou, train_iou_harsh, train_f1 = train_metrics
+    val_iou, val_iou_harsh, val_f1 = val_metrics
+
+    train_loc_loss, train_score_loss, train_box_conf_loss = train_loss
+    val_loc_loss, val_score_loss, val_vox_conf_loss = val_loss
+
     total_train_loss = sum(train_loss)
     total_val_loss = sum(val_loss)
 
     writer.add_scalar('Loss/train', total_train_loss, epoch)
     writer.add_scalar('Loc Loss/train', train_loc_loss, epoch)
     writer.add_scalar('Score Loss/train', train_score_loss, epoch)
+    writer.add_scalar('Box conf Loss/train', train_box_conf_loss, epoch)
     writer.add_scalar('IOU/train', train_iou, epoch)
+    writer.add_scalar('IOU harsh/train', train_iou_harsh, epoch)
     writer.add_scalar('F1/train', train_f1, epoch)
 
     writer.add_scalar('Loss/val', total_val_loss, epoch)
     writer.add_scalar('Loc Loss/val', val_loc_loss, epoch)
     writer.add_scalar('Score Loss/val', val_score_loss, epoch)
+    writer.add_scalar('Box conf Loss/val', val_vox_conf_loss, epoch)
     writer.add_scalar('IOU/val', val_iou, epoch)
+    writer.add_scalar('IOU harsh/val', val_iou_harsh, epoch)
     writer.add_scalar('F1/val', val_f1, epoch)
 
 
@@ -94,7 +100,7 @@ def create_tensorboard_name(args, params):
     dir = args.experiment_name + "/" + args.dataset_name + "/"
     params_ = params.dict
     suffix = ''
-    wanted_keys = ['learning_rate', 'batch_size', 'n_epochs', 'default_width', 'roi_width', 'data_augmentation', 'roi_crop']
+    wanted_keys = ['n_epochs', 'default_width', 'roi_width', 'data_augmentation', 'roi_crop', 'relative_roi_perturbation', 'use_min_size']
     for k, v in params_.items():
         if k in wanted_keys:
             suffix += str(v) + "_"

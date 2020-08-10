@@ -23,7 +23,7 @@ def get_dataset_gt_bounds(dataset_name, params, config):
 
     x_max, x_min, y_max, y_min = -1, math.inf, -1, math.inf
     for path in all_samples:
-        image, mask, _ = reading.get_img_mask_pair(image_path=path, dset_name=dataset_name,
+        image, mask, _ = reading.read_img_mask_pair(image_path=path, dset_name=dataset_name,
                                                    seg_type=config.seg_type)
 
         # do all computation relative to the actual inference size
@@ -77,8 +77,8 @@ def reinsert_roi(prediction, reconstruction_info, params):
     # resize predicted rois
     orig_roi_sizes = reconstruction_info
     for idx, (x_min, y_min, x_max, y_max) in enumerate(orig_roi_sizes):
-        # print("In roi crop: ", idx, x_min, y_min, x_max, y_max)
         orig_roi_width, orig_roi_height = x_max - x_min + 1, y_max - y_min + 1
+
         # simulate mini batch of 1 for interpolate function
         current_roi = prediction[idx].unsqueeze(0)
         original_roi = torch.nn.functional.interpolate(current_roi,
@@ -130,11 +130,40 @@ def get_minimum_size(x_min, y_min, x_max, y_max, params):
     return x_min, y_min, x_max, y_max
 
 
+def extract_ROI_from_pred(volume, params, predicted_coordinates):
+    """
+    volume: D x H x W ndarray
+    predicted coordinates: list of roi coords for the slices of the volume
+
+    returns:
+    returns - D x H x W roi ndarray
+    """
+    if torch.is_tensor(volume):
+        volume = volume.detach().cpu().numpy()
+    roi_volume = []
+    for i, (image_slice, coords) in enumerate(zip(volume, predicted_coordinates)):
+        roi = extract_ROI(image_slice, coords)
+
+        # resize roi to input res
+        roi = cv2.resize(roi, dsize=(params.roi_width, params.roi_height))
+        roi_volume.append(roi)
+
+    roi_volume = np.stack(roi_volume)
+
+    return roi_volume
+
+
 def extract_ROI_3d(volume, mask, params, config):
+    """
+    volume - D x H x W ndarray
+
+    returns - D x H x W roi ndarray
+    """
     roi_volume = []
     orig_roi_infos = []
-    for i, (image_slice, mask_slice) in enumerate(zip(volume, mask)):
-        box_coords = compute_ROI_coords(mask_slice, params, config, validation=True)
+    coords_n_scores = get_volume_coords(mask, params, config, validation=True)
+    for i, (image_slice, _, coords_n_score) in enumerate(zip(volume, mask, coords_n_scores)):
+        box_coords = coords_n_score[:4]
         roi = extract_ROI(image_slice, box_coords)
         orig_roi_infos.append(box_coords)
 
@@ -147,25 +176,26 @@ def extract_ROI_3d(volume, mask, params, config):
     return roi_volume, orig_roi_infos
 
 
-def extract_ROI_from_pred(volume, params, predicted_coordinates):
-    roi_volume = []
-    orig_roi_infos = []
+def get_volume_coords(mask, params, config, validation=False, double_seg=False):
+    """
+    Iterates the volume slices and computes a bounding box for the labelled area
+    For unlabelled slices, a flag will be set
+    """
+    if double_seg:
+        setup = [False, True, True]
+    else:
+        setup = get_roi_crop_setup(params, config)
+    coords_n_scores = []
+    if torch.is_tensor(mask):
+        mask = mask.numpy()
+    for slice in mask:
+        (x_min, y_min, x_max, y_max) = compute_ROI_coords(slice, params, setup, validation=validation)
+        score = no_roi_check(x_min, y_min, x_max, y_max, params)
+        coords_n_scores.append((x_min, y_min, x_max, y_max, score))
+    return coords_n_scores
 
-    for i, (image_slice, coords) in enumerate(zip(volume, predicted_coordinates)):
-        roi = extract_ROI(image_slice.squeeze(0), coords)
-        orig_roi_infos.append(coords)
 
-        # resize roi to input res
-        roi = roi.reshape(1, 1, *roi.shape)
-        roi = torch.nn.functional.interpolate(
-            roi, (params.roi_height, params.roi_width), mode="bilinear")
-        roi_volume.append(roi)
-    roi_volume = torch.cat(roi_volume, dim=0)
-
-    return roi_volume, orig_roi_infos
-
-
-def compute_ROI_coords(mask, params, config, validation=False):
+def compute_ROI_coords(mask, params, setup, validation=False):
     """
     mask: ndarray: 2D label image, used for extracting relativ roi coords
     validation: bool: relatvie roi extraction differs
@@ -174,18 +204,18 @@ def compute_ROI_coords(mask, params, config, validation=False):
 
     returns: tuple of box coords
     """
+    perturbation, detection_err_margin, use_min_size = setup
     x_min, y_min, x_max, y_max = get_mask_bounds(mask, params)
-    x_min, y_min, x_max, y_max = get_minimum_size(x_min, y_min, x_max, y_max, params)
 
-    if config.model_id in constants.segmentor_ids:
-        if params.relative_roi_perturbation:
-            x_min, y_min, x_max, y_max = add_perturbation(
-                x_min, y_min, x_max, y_max, params, validation)
+    if perturbation:
+        x_min, y_min, x_max, y_max = add_perturbation(x_min, y_min, x_max, y_max,
+                                                      params, validation)
 
-    elif config.model_id in constants.detectors:
-        # margin should be added before minimum size
-        x_min, y_min, x_max, y_max = add_detection_error_margin(
-            x_min, y_min, x_max, y_max, params)
+    if detection_err_margin:
+        x_min, y_min, x_max, y_max = add_detection_error_margin(x_min, y_min, x_max, y_max, params)
+
+    if use_min_size:
+        x_min, y_min, x_max, y_max = get_minimum_size(x_min, y_min, x_max, y_max, params)
 
     return (x_min, y_min, x_max, y_max)
 
@@ -193,25 +223,25 @@ def compute_ROI_coords(mask, params, config, validation=False):
 def add_perturbation(x_min, y_min, x_max, y_max, params, validation=False):
     # practically, region cut won't always be perfect, so add a perturbation value
     perfect_roi_width, perfect_roi_height = x_max - x_min, y_max - y_min
-    width_perturb_limit = perfect_roi_width // 5
-    height_perturb_limit = perfect_roi_height // 5
-    min_width_perturb = perfect_roi_width // 20
-    min_height_perturb = perfect_roi_height // 20
+    max_perturb, min_perturb = params.relative_roi_perturbation
 
-    # perturbation (error) for detector will be exactly // 10
+    width_perturb_limit = int(perfect_roi_width / max_perturb)
+    height_perturb_limit = int(perfect_roi_height / max_perturb)
+    min_width_perturb = int(perfect_roi_width / min_perturb)
+    min_height_perturb = int(perfect_roi_height / min_perturb)
 
     if not validation:
-        # perturb up to 33% of original size
+        # perturb up to x% of original size
         x_min_perturb = np.random.randint(min_width_perturb, width_perturb_limit+1)
         x_max_perturb = np.random.randint(min_width_perturb, width_perturb_limit+1)
         y_max_perturb = np.random.randint(min_height_perturb, height_perturb_limit+1)
         y_min_perturb = np.random.randint(min_height_perturb, height_perturb_limit+1)
     else:
         # if we're validating, add fixed perturbation to avoid a lucky eval
-        x_min_perturb = width_perturb_limit // 2
-        x_max_perturb = width_perturb_limit // 2
-        y_max_perturb = height_perturb_limit // 2
-        y_min_perturb = height_perturb_limit // 2
+        x_min_perturb = int(width_perturb_limit / 2)
+        x_max_perturb = int(width_perturb_limit / 2)
+        y_max_perturb = int(height_perturb_limit / 2)
+        y_min_perturb = int(height_perturb_limit / 2)
 
     x_min -= x_min_perturb
     x_max += x_max_perturb
@@ -228,8 +258,9 @@ def add_perturbation(x_min, y_min, x_max, y_max, params, validation=False):
 
 def add_detection_error_margin(x_min, y_min, x_max, y_max, params):
     perfect_roi_width, perfect_roi_height = x_max - x_min, y_max - y_min
-    width_perturb = perfect_roi_width // 10
-    height_perturb = perfect_roi_height // 10
+    err_margin = params.err_margin
+    width_perturb = int(perfect_roi_width / err_margin)
+    height_perturb = int(perfect_roi_height / err_margin)
 
     x_min -= width_perturb
     x_max += width_perturb
@@ -251,3 +282,17 @@ def clamp_values(x_min, y_min, x_max, y_max, width, height):
     y_max = min(y_max, height - 1)
 
     return x_min, y_min, x_max, y_max
+
+
+def get_roi_crop_setup(params, config):
+    perturb = params.relative_roi_perturbation
+    err_margin = params.use_det_err_margin if config.model_id in constants.detectors else False
+    use_min_size = params.use_min_size
+    setup = [perturb, err_margin, use_min_size]
+    return setup
+
+
+def no_roi_check(x_min, y_min, x_max, y_max, params):
+    if (0, 0, params.default_width - 1, params.default_height - 1) == (x_min, y_min, x_max, y_max):
+        return 0
+    return 1

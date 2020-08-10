@@ -8,19 +8,18 @@ from models import _2D_Unet, deeplabv3_plus, ROI_detector
 from training import lr_handler
 
 
-def model_setup(dset_name, params, config):
+def model_setup(params, config):
     """
     creates model and moves it on to cpu/gpu
     """
+    dset_name = config.dataset
     if config.model_id in constants.segmentor_ids:
-        if config.seg_type == constants.whole_heart_seg:
-            # heart plus background
+        if dset_name == constants.imatfib_root_dir:
             n_classes = 2
+        elif dset_name == constants.acdc_root_dir or dset_name == constants.acdc_test_dir:
+            n_classes = 4
         else:
-            if dset_name == constants.acdc_root_dir:
-                n_classes = 4
-            else:
-                n_classes = 8
+            n_classes = 8
         if config.model_id == constants.unet:
             model = _2D_Unet.UNet(n_channels=1, n_classes=n_classes,
                                   shrinking_factor=params.shrinking_factor)
@@ -50,7 +49,8 @@ def optimizer_setup(model, params):
     return optimizer
 
 
-def prepare_dataloaders(dset_name, params, config):
+def prepare_dataloaders(params, config):
+    dset_name = config.dataset
     training_dataset, validation_dataset = create_datasets.train_val(dataset_name=dset_name,
                                                                      params=params, config=config)
     training_dataloader, validation_dataloader = create_dataloaders.get_dataloaders(
@@ -58,10 +58,18 @@ def prepare_dataloaders(dset_name, params, config):
     return training_dataloader, validation_dataloader
 
 
-def prepare_val_loader(dset_name, params, config):
-    validation_dataset = create_datasets.create_val_set(dset_name, params, config)
-    validation_dataloader = create_dataloaders.get_validation_loader(validation_dataset, params)
-    return validation_dataloader
+def prepare_val_loader(params, config):
+    dset_name = config.dataset
+    val_dataset = create_datasets.create_val_set(dset_name, params, config)
+    val_dataloader = create_dataloaders.get_test_loader(val_dataset, params)
+    return val_dataloader
+
+
+def prepare_test_loader(params, config):
+    dset_name = config.dataset
+    test_dataset = create_datasets.create_test_set(dset_name, params, config)
+    test_dataloader = create_dataloaders.get_test_loader(test_dataset, params)
+    return test_dataloader
 
 
 def load_model(model, optimizer, params, dset_name, experiment_name):
@@ -69,7 +77,7 @@ def load_model(model, optimizer, params, dset_name, experiment_name):
     print("Loading model from: ", load_path)
     checkpoint = torch.load(load_path)
     start_epoch = 0
-    if params.load_type == constants.load_training:
+    if params.load_type == constants.load_simple:
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         # start training from the next epoch, do not repeat the same epoch it was saved on

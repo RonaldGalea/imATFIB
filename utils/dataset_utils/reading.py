@@ -5,8 +5,6 @@ from collections import namedtuple
 
 from utils.dataset_structuring import acdc, general
 import constants
-import general_config
-
 
 Info = namedtuple('Info', ['affine', 'header'])
 
@@ -20,7 +18,7 @@ def get_train_val_paths(dataset_name, k_split):
     For imogen and mmwhs, the split factor is controlled by k_split
     """
     dataset_dir = Path.cwd() / 'datasets' / dataset_name
-    if constants.acdc_root_dir in dataset_name:
+    if constants.acdc_root_dir == dataset_name or constants.acdc_test_dir == dataset_name:
         split_dict = acdc.acdc_train_val_split(dataset_dir)
     else:
         split_dict = general.train_val_split(dataset_dir, k_split=k_split)
@@ -28,8 +26,8 @@ def get_train_val_paths(dataset_name, k_split):
     return split_dict
 
 
-def get_img_mask_pair(image_path, dset_name=constants.acdc_root_dir,
-                      seg_type=constants.multi_class_seg):
+def read_img_mask_pair(image_path, dset_name=constants.acdc_root_dir,
+                       seg_type=constants.multi_class_seg):
     """
     Args:
     image_path - pathlib.Path: path to image
@@ -64,15 +62,18 @@ def get_img_mask_pair(image_path, dset_name=constants.acdc_root_dir,
         gt_name_with_ext = only_name + '_gt.nii.gz'
         mask_path = Path(str(image_path).replace(name_with_ext, gt_name_with_ext))
 
-    # print("From reading: ", image_path)
-    # print("From reading: ", mask_path, "\n")
-    image_info, mask_info = nib.load(image_path), nib.load(mask_path)
-
-    image = np.array(image_info.dataobj)
-    mask = np.array(mask_info.dataobj)
-
-    # necessary information to save .nii file and compute metrics
-    image = image.astype(np.float32)
-    info = Info(mask_info.affine, mask_info.header)
+    image, _ = read_image(image_path, type="pred")
+    mask, info = read_image(mask_path)
 
     return image, mask, info
+
+
+def read_image(image_path, type="gt"):
+    image_info = nib.load(image_path)
+    image = np.array(image_info.dataobj)
+    if type == "pred":
+        image = image.astype(np.float32)
+
+    info = Info(image_info.affine, image_info.header)
+
+    return image, info

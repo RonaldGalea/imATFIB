@@ -58,6 +58,11 @@ def validate_params(params):
         if freeze_type not in constants.freeze_types:
             print(freeze_type)
             raise AssertionError("Params not ok..." + "freeze_type")
+    if hasattr(params, "relative_roi_perturbation"):
+        perturb = params.relative_roi_perturbation
+        if perturb not in constants.perturb_types:
+            print(perturb)
+            raise AssertionError("Params not ok..." + "relative_roi_perturbation")
 
     if norm_type not in constants.norm_types:
         raise AssertionError("Params not ok..." + "norm_type")

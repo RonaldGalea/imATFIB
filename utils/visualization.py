@@ -1,97 +1,106 @@
-import torch
 import numpy as np
 import cv2
 from albumentations import Resize
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import copy
 
-import general_config
-from utils.training_utils import training_processing
+from utils import inference
+from utils.ROI_crop import roi_crop
+from utils.training_utils import training_setup
+from utils import metrics
+from utils import prepare_models
 
 
 height, width = 400, 400
 exist_label = False
 
 
-# have each models results saved in a list, then do whatever manipulation needed with these lists
-def visualize_validation_dataset(dataloader, models, params, config, model_names, show):
+def save_models_results(model_ids, dataset_name):
     """
     Args:
-    dataloader: validation dataloader, has to return one volume at a time
-    models: list of nn.Module objects - trained models
-
-    This function provides visualization of the input, ground truth and model predictions
+    model_ids - list of strings
+    dataset_name - string
     """
-    dataloader.dataset.visualization_mode = True
+    # prepare models
+    models, params_list, configs_list = prepare_models.prepare(model_ids, dataset_name)
+
+    model_preds, model_dices = [], []
+    for model, params, config in zip(models, params_list, configs_list):
+        # get a dataloader
+        validation_loader = training_setup.prepare_val_loader(params, config)
+
+        # run inference
+        validation_loader.dataset.visualization_mode = True
+        preds, dices = inference.run_model_inference(validation_loader, model, params, config)
+
+        model_preds.append(preds)
+        model_dices.append(dices)
+
+    # save predictions
+    save_predictions(validation_loader, model_ids, dataset_name, model_preds, model_dices)
+
+
+def save_predictions(dataloader, model_names, dataset_name, model_pred_lists, model_dice_lists=None):
+    """
+    dataloader - to get the original input and masks
+    model_names - to print which models are being used
+    dataset_name - str
+    model_pred_list - the predictions of each model
+    model_dice_lists - the dices for each slice
+    """
+    # note vij - volume j predicted by model i
+    # currently we have a list of lists with each models predictions: so v11, v21, v31... v12, v22...
+    # a reordering is desired such that v11, v12, v13, v14... v21, v22, v23, v24...
+    n_models, n_volumes = len(model_names), len(dataloader)
+
+    volumes_pred = [[None for i in range(n_models)] for j in range(n_volumes)]
+    dice_values = [[None for i in range(n_models)] for j in range(n_volumes)]
+
+    for i in range(n_volumes):
+        for j in range(n_models):
+            volumes_pred[i][j] = model_pred_lists[j][i]
+            if model_dice_lists:
+                dice_values[i][j] = model_dice_lists[j][i]
+
     total = 0
-    for vol_idx, (volume, mask, r_infos, orig_volume) in enumerate(dataloader):
+    for vol_idx, (_, mask, _, orig_volume) in enumerate(dataloader):
+        c_pred_volume = volumes_pred[vol_idx]
+        c_pred_dices = dice_values[vol_idx]
 
-        # process current volume by each model
-        final_preds, all_dices = [], []
-        for model in models:
-            volume, mask = volume.to(general_config.device), mask.to(general_config.device)
-            # process volume slice by slice so we can see dice per each one
-            dices, pred_slices = [], []
-            for slice_idx, (vol_slice, mask_slice) in enumerate(zip(volume, mask)):
-                # simulate bs = 1
-                vol_slice = vol_slice.unsqueeze(0)
-                mask_slice = mask_slice.unsqueeze(0)
-                # this has softmax channels, (cuda) tensor
-                if r_infos is not None:
-                    r_info = [r_infos[slice_idx]]
-                else:
-                    r_info = None
-                processed_volume = training_processing.process_volume(model, vol_slice, mask_slice,
-                                                                      params, r_info)
-                # this is final pred, cpu, np.uint8
-                slice_dice, final_slice, _ = training_processing.compute_dice(processed_volume,
-                                                                              mask_slice)
-                dices.append(slice_dice)
-                pred_slices.append(final_slice)
-
-            # save current model prediction and stats
-            pred_volume = np.concatenate(pred_slices)
-            final_preds.append(pred_volume)
-            all_dices.append(dices)
-
-        # having run all models, show results on the current volume
+        # show results on the current volume
         orig_volume = orig_volume.cpu().numpy()
-        orig_volume = np.transpose(orig_volume, (2, 0, 1))
-        # orig_volume = (orig_volume / 255).astype(np.float32)
         mask = mask.cpu().numpy().astype(np.uint8)
 
         for idx, (inp, msk) in enumerate(zip(orig_volume, mask)):
-            inp = inp.astype(np.float32)
-            msk = msk.astype(np.float32)
-            # convert msk to rgb and make it green
-            msk_green = np.zeros((*msk.shape, 3))
-            msk_green[:, :, 1] = msk
-            image_list = [inp, msk_green]
-            name_list = ["Input", "Mask"]
             total += 1
-            save_id = "results/" + config.dataset + "/" + params.roi_crop + "".join(model_names) + "/" + "_" + \
-                str(total) + "_" + str(idx) + "_" + str(vol_idx)
+            inp = inp.astype(np.float32)
 
-            print(save_id)
+            colored_mask = color_a_mask(msk, type="gt")
+
+            image_list = [inp, colored_mask]
+            name_list = ["Input", "Mask"]
+            save_id = "results/" + dataset_name + "/" + \
+                "".join(model_names) + "/" + str(total) + "_" + str(idx) + "_" + str(vol_idx)
 
             overlays, overlay_names = [], []
-            for pred, dice, model_name in zip(final_preds, all_dices, model_names):
+            for pred, dice, model_name in zip(c_pred_volume, c_pred_dices, model_names):
                 base = pred[idx]
-                # convert pred to rgb and make it blue
-                base_green = np.zeros((*base.shape, 3))
-                base_green[:, :, 0] = base
-                image_list.append(base_green)
+                # convert pred to rgb and make color it
+                base_colored = color_a_mask(base)
+                image_list.append(base_colored)
                 name_list.append(model_name)
 
                 # overlay prediction on ground truth, with different color
-                caption = model_name + " " + "{:.3f}".format(float(np.mean(dice[idx])))
-                overlays.append(base_green + msk_green)
+                if dice:
+                    caption = model_name + " " + "{:.3f}".format(float(np.mean(dice[idx])))
+                else:
+                    caption = model_name
+                overlays.append(base_colored + colored_mask)
                 overlay_names.append(caption)
 
             image_list.extend(overlays)
             name_list.extend(overlay_names)
-            if show:
-                save_id = None
             show_images(image_list, cols=len(image_list)//2, titles=name_list, save_id=save_id)
 
 
@@ -104,7 +113,6 @@ def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask', us
 
     Return:
     """
-    print("In visualization, original shape ", image.shape)
     if not use_orig_res:
         resize = Resize(height=height, width=width, interpolation=cv2.INTER_CUBIC)
         augmented = resize(image=image, mask=mask)
@@ -127,7 +135,6 @@ def visualize_img_mask_pair(image_3d, mask_3d):
     mask_3d - ndarray: HxWxC label_3d
     Return:
     """
-    resize = Resize(height=height, width=width, interpolation=cv2.INTER_CUBIC)
     print("In visualization, image_3d shape: ", image_3d.shape)
     print("In visualization, Unique elements in mask_3d: ", np.unique(mask_3d), "\n")
     for i in range(image_3d.shape[2]):
@@ -135,22 +142,12 @@ def visualize_img_mask_pair(image_3d, mask_3d):
 
             current_img = image_3d[:, :, i]
             current_mask = mask_3d[:, :, i]
-            print(np.unique(current_mask))
-
-            augmented = resize(image=current_img, mask=current_mask)
-            current_img = augmented['image']
-            current_mask = augmented['mask']
-
-            current_img = (current_img * (255/current_img.max())).astype(np.uint8)
-            current_mask = (current_mask * (255/mask_3d.max())).astype(np.uint8)
-            cv2.imshow("img", current_img)
-            cv2.imshow("mask", current_mask)
-            cv2.waitKey(0)
+            visualize_img_mask_pair_2d(current_img, current_mask, wait=True)
 
     cv2.destroyAllWindows()
 
 
-def show_images(images, cols=1, titles=None, save_id=None):
+def show_images(images, cols=1, titles=None, save_id=None, n_classes=2):
     """
     taken from https://gist.github.com/soply/f3eec2e79c165e39c9d540e916142ae1
     Display a list of images in a single figure with matplotlib.
@@ -175,8 +172,17 @@ def show_images(images, cols=1, titles=None, save_id=None):
         plt.imshow(image)
         ax.set_title(title)
 
-    labels = ["ground truth", "prediction", "intersection"]
-    colors = [(0, 1, 0), (1, 0, 0), (1, 1, 0)]
+    gt_colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]
+    # pred_colors = [(0, 1, 1), (1, 140 / 255, 0), (1, 1, 0)]
+    pred_colors = [(0, 1, 0), (1, 140 / 255, 0), (1, 1, 0)]
+    labels, colors = [], []
+    for idx, c in enumerate(range(1, n_classes)):
+        labels.append("ground truth class - " + str(c))
+        labels.append("prediction class - " + str(c))
+        labels.append("intersection class - " + str(c))
+        colors.append(gt_colors[idx])
+        colors.append(pred_colors[idx])
+        colors.append([x+y for x, y in zip(gt_colors[idx], pred_colors[idx])])
 
     patches = [mpatches.Patch(color=colors[i], label=labels[i]) for i in range(len(labels))]
     plt.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
@@ -185,8 +191,99 @@ def show_images(images, cols=1, titles=None, save_id=None):
     fig.set_figwidth(19)
     plt.tight_layout()
 
-    if save_id:
-        plt.savefig(save_id, dpi=fig.dpi)
-    else:
-        plt.show()
+    plt.savefig(save_id, dpi=fig.dpi)
     plt.close()
+
+
+def visualize_pred_coords(volume, mask, coords, scores, params, config):
+    print("unique pred elements: ", np.unique(volume))
+    for i in range(volume.shape[0]):
+        c_image = cv2.resize(volume[i], dsize=(512, 512)) * 200
+        c_mask = mask[i]
+
+        pos_1 = c_mask == 1
+        pos_2 = c_mask == 2
+        pos_3 = c_mask == 3
+        dummy_mask = np.zeros((c_mask.shape))
+        dummy_mask[pos_1] = 200.0
+        dummy_mask[pos_2] = 180.0
+        dummy_mask[pos_3] = 255.0
+        dummy_mask = cv2.resize(dummy_mask, dsize=(c_image.shape))
+
+        x_min, y_min, x_max, y_max = coords[i]
+        params_cpy = copy.deepcopy(params)
+        params_cpy.relative_roi_perturbation = [4, 20]
+        setup = roi_crop.get_roi_crop_setup(params_cpy, config)
+        print("In visualization QDFQWEF", params_cpy.relative_roi_perturbation, setup)
+        gx_min, gy_min, gx_max, gy_max = roi_crop.compute_ROI_coords(
+            dummy_mask, params_cpy, setup, validation=True)
+
+        print("Pred coords :", x_min, y_min, x_max, y_max)
+        print("GT coords :", gx_min, gy_min, gx_max, gy_max)
+
+        c_image = cv2.rectangle(c_image, (x_min, y_min), (x_max, y_max), 1000, 1)
+        c_image = cv2.rectangle(c_image, (gx_min, gy_min), (gx_max, gy_max), 1000, 1)
+
+        dummy_mask = cv2.rectangle(dummy_mask, (x_min, y_min), (x_max, y_max), 1000, 1)
+        dummy_mask = cv2.rectangle(dummy_mask, (gx_min, gy_min), (gx_max, gy_max), 1000, 1)
+
+        classes = list(np.unique(c_mask))
+        classes.pop(0)
+        dice = metrics.metrics(mask[i], volume[i], classes=classes)
+
+        print("Score: ", scores[i])
+        print("Dice: ", dice, np.mean(dice))
+        print("unique mask slice elems", np.unique(c_mask))
+
+        visualize_img_mask_pair_2d(
+            c_image, dummy_mask, str(np.mean(dice)), "after_mask", use_orig_res=True, wait=True)
+        cv2.destroyAllWindows()
+
+
+def color_a_mask(mask, type="prediction"):
+    """
+    mask - H x W ndarray
+    type - str - use colors for prediction or ground truth
+
+    Colors used for ground truth
+        red - (255, 0, 0)
+        green - (0, 255, 0)
+        blue - (0, 0, 255)
+
+    Colors used for prediction
+        cyan - (0, 255, 255)
+        orange - (255,140,0)
+        yellow - (255,255,0)
+    """
+    gt_colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]
+    # pred_colors = [(0, 1, 1), (1, 140 / 255, 0), (1, 1, 0)]
+    pred_colors = [(0, 1, 0), (1, 140 / 255, 0), (1, 1, 0)]
+
+    current_colors = gt_colors
+    if type == "prediction":
+        current_colors = pred_colors
+
+    classes = list(np.unique(mask))
+    # not counting background
+    classes.pop(0)
+
+    colored_mask = np.zeros((*mask.shape, 3))
+
+    # not counting background
+    for idx, c_id in enumerate(classes):
+        color_a_class(current_colors[idx], c_id, colored_mask, mask)
+
+    return colored_mask
+
+
+def color_a_class(color_code, class_id, colored_mask, mask):
+    """
+    colored_mask - H x W x C ndarray
+    mask - H x W ndarray
+
+    the colored mask is modified in-place
+    """
+    class_indices = mask == class_id
+    for idx, intensity in enumerate(color_code):
+        c_intensity_sheet = colored_mask[:, :, idx]
+        c_intensity_sheet[class_indices] = intensity

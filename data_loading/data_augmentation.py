@@ -11,10 +11,9 @@ from albumentations import (
     GaussNoise,
     GaussianBlur
 )
-import torchvision.transforms.functional as F
 
-import constants
 from utils.ROI_crop import roi_crop
+import constants
 import general_dataset_settings
 
 
@@ -38,7 +37,8 @@ class Augmentor():
         image, mask = self.resizer(image=image, mask=mask).values()
         # extract roi
         if self.params.roi_crop != constants.no_roi_extraction:
-            box_coords = roi_crop.compute_ROI_coords(mask, self.params, self.config)
+            setup = roi_crop.get_roi_crop_setup(self.params, self.config)
+            box_coords = roi_crop.compute_ROI_coords(mask, self.params, setup)
             image = roi_crop.extract_ROI(image, box_coords)
             mask = roi_crop.extract_ROI(mask, box_coords)
 
@@ -58,42 +58,27 @@ class Augmentor():
         if self.params.data_augmentation != constants.no_augmentation:
             image, mask = self.aug(image=image, mask=mask).values()
         # need to return the ROI coords and the binary value whether the heart is present
-        (x_min, y_min, x_max, y_max) = roi_crop.compute_ROI_coords(mask, self.params, self.config)
-        score = self.no_roi_check(x_min, y_min, x_max, y_max)
+        setup = roi_crop.get_roi_crop_setup(self.params, self.config)
+        (x_min, y_min, x_max, y_max) = roi_crop.compute_ROI_coords(mask, self.params, setup)
+        score = roi_crop.no_roi_check(x_min, y_min, x_max, y_max, self.params)
         return image, (x_min, y_min, x_max, y_max, score)
 
     def segmentor_valid_data(self, volume, mask):
         reconstruction_info = None
-        volume, resized_mask = self.resize_volume_HW(volume, mask)
+        resized_volume, resized_mask = self.resize_volume_mask_pair(volume, mask)
         if self.params.roi_crop != constants.no_roi_extraction:
-            volume, reconstruction_info = roi_crop.extract_ROI_3d(volume, resized_mask, self.params, self.config)
-        return volume, reconstruction_info
+            volume_roi, reconstruction_info = roi_crop.extract_ROI_3d(resized_volume, resized_mask, self.params, self.config)
+            return volume_roi, reconstruction_info, resized_volume
+
+        return resized_volume, reconstruction_info, resized_volume
 
     def detector_valid_data(self, volume, mask):
-        volume, resized_mask = self.resize_volume_HW(volume, mask)
-        coords_n_scores = []
-        for slice in resized_mask:
-            (x_min, y_min, x_max, y_max) = roi_crop.compute_ROI_coords(slice, self.params, self.config, True)
-            score = self.no_roi_check(x_min, y_min, x_max, y_max)
-            coords_n_scores.append((x_min, y_min, x_max, y_max, score))
+        volume, resized_mask = self.resize_volume_mask_pair(volume, mask)
+        coords_n_scores = roi_crop.get_volume_coords(resized_mask, self.params, self.config, True)
 
         return volume, coords_n_scores
 
-    def normalize(self, image):
-        """
-        Args:
-        image: torch.tensor (1 H W)
-        """
-        if self.params.norm_type == constants.per_dataset:
-            image = F.normalize(image, [self.dataset_mean], [self.dataset_std])
-        elif self.params.norm_type == constants.per_slice:
-            std = torch.std(image)
-            if std == 0:
-                std = 1
-            image = F.normalize(image, [torch.mean(image)], [std])
-        return image
-
-    def resize_volume_HW(self, image, mask):
+    def resize_volume_mask_pair(self, image, mask):
         """
         Resizes image and mask volumes along H and W
 
@@ -108,6 +93,20 @@ class Augmentor():
             resized_mask.append(resized_mask_slice)
 
         return np.array(resized_image), np.array(resized_mask)
+
+    def resize_volume(self, image):
+        """
+        Resizes image volumes along H and W
+
+        Returns:
+        resized ndarrays
+        """
+        resized_image = []
+        for img_slice in image:
+            resized_img_slice = self.plain_resize(image=img_slice)['image']
+            resized_image.append(resized_img_slice)
+
+        return np.array(resized_image)
 
     def initialize_elements(self):
         self.resizer = self.plain_resize
@@ -131,25 +130,3 @@ class Augmentor():
         if self.params.data_augmentation == constants.heavy_augmentation:
             starting_aug.extend(heavy_aug)
         self.aug = Compose(starting_aug)
-
-        if self.config.dataset == constants.imatfib_root_dir:
-            self.dataset_mean = general_dataset_settings.imatfib_dataset_mean
-            self.dataset_std = general_dataset_settings.imatfib_dataset_std
-
-        elif self.config.dataset == constants.acdc_root_dir:
-            self.dataset_mean = general_dataset_settings.acdc_dataset_mean
-            self.dataset_std = general_dataset_settings.acdc_dataset_std
-
-        else:
-            self.dataset_mean = general_dataset_settings.mmwhs_dataset_mean
-            self.dataset_std = general_dataset_settings.mmwhs_dataset_std
-
-        if self.params.norm_type == constants.per_slice:
-            print("Using per slice normalization!")
-        else:
-            print("Dataset mean and std: ", self.dataset_mean, self.dataset_std)
-
-    def no_roi_check(self, x_min, y_min, x_max, y_max):
-        if (0, 0, self.params.default_width - 1, self.params.default_height - 1) == (x_min, y_min, x_max, y_max):
-            return 0
-        return 1

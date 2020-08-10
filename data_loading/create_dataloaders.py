@@ -40,3 +40,15 @@ def get_validation_loader(validation_dataset, params):
                                                             drop_last=False))
 
     return validation_dataloader
+
+
+def get_test_loader(test_set, params):
+    test_sampler = SequentialSampler([i for i in range(len(test_set))])
+
+    test_dataloader = DataLoader(test_set, batch_size=None,
+                                 shuffle=False, num_workers=0,
+                                 sampler=BatchSampler(test_sampler,
+                                                      batch_size=1,
+                                                      drop_last=False))
+
+    return test_dataloader

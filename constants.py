@@ -1,6 +1,7 @@
 # directory names and other string constants used throughout the poject
 
 acdc_root_dir = "ACDC_training"
+acdc_test_dir = "acdc_test_set"
 imatfib_root_dir = "imatfib-whs"
 mmwhs_root_dir = "mmwhs"
 
@@ -53,3 +54,5 @@ load_types = [load_simple, load_transfer]
 classifier_freeze = "classifier_layer"
 progressive_freeze = "all_layers"
 freeze_types = [classifier_freeze, progressive_freeze]
+
+perturb_types = [[4, 20], [4.5, 20], [5, 20], [6, 30], [8, 40], False]

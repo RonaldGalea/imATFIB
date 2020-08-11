@@ -16,3 +16,4 @@ experiments/
 *.json
 ./segmentors
 ./detectors
+*.csv

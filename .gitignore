@@ -27,8 +27,3 @@ datasets/*
 acdc_test/*
 acdc_test_resnext/*
 acdc_test_all_ensemble/*
-
-
-datasets/*
-!datasets/ACDC_training/
-!datasets/acdc_test_set/

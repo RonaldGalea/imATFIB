@@ -1,0 +1,8 @@
+{
+  "model_id": "2D_Unet",
+  "dataset": "acdc_test_set",
+  "evaluation_step": 1,
+  "statistics_print_step": 10,
+  "visualize_dataset": false,
+  "seg_type": "multiple-classes"
+}

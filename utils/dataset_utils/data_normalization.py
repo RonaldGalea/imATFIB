@@ -2,6 +2,7 @@ import numpy as np
 import math
 
 import constants
+import general_dataset_settings
 """
 - % of images with existing label (not just background) (have to restructure dset)
 - mean and std of images - can be done rn (by the looks i must be very careful with normalization)
@@ -13,10 +14,18 @@ def normalize(images, norm_type, scale_0_1=True):
     assert norm_type in constants.norm_types
     if norm_type == constants.per_slice:
         per_slice_norm(images)
-    elif norm_type == constants.per_volume:
-        per_volume_norm(images)
-    else:
-        per_dataset_norm(images)
+
+
+def unnormalize(image, config):
+    if config.dataset == constants.imatfib_root_dir:
+        mean = general_dataset_settings.imatfib_dataset_mean
+        std = general_dataset_settings.imatfib_dataset_std
+    elif config.dataset == constants.acdc_root_dir:
+        mean = general_dataset_settings.acdc_dataset_mean
+        std = general_dataset_settings.acdc_dataset_std
+
+    image = (image * std) + mean
+    return image
 
 
 def per_slice_norm(images):
@@ -33,20 +42,9 @@ def per_slice_norm(images):
             slice /= np.std(slice)
 
 
-def per_volume_norm(images):
-    """
-    Normalizes data per volume:
-    disadvantage -> loss of possible relevant features, unique to the volume
-    advantage -> removes the intensity differences across volumes
-    """
-    for image in images:
-        image -= np.mean(image)
-        image /= np.std(image)
-
-
 def per_dataset_norm(images):
     """
-    Normalizes data per whole dataset statistics:
+    Computes mean and std for dataset
     advantage -> preserves relevant features, unique to the volumes
     disadvantage -> intensity differences across volumes remain
     """
@@ -62,6 +60,4 @@ def per_dataset_norm(images):
         shady_std += np.sum((image - shady_mean) ** 2)
     shady_std = math.sqrt(shady_std / total_elem)
 
-    for image in images:
-        image -= shady_mean
-        image /= shady_std
+    return shady_mean, shady_std

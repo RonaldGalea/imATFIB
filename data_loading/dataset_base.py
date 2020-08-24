@@ -1,10 +1,14 @@
-import numpy as np
+import cv2
+import torch
+
 from torch.utils.data import Dataset
 
 import general_config
+import constants
+import general_dataset_settings
 from utils import visualization
-from utils.dataset_utils import reading
 from data_loading import data_augmentation
+from utils.training_utils import box_utils
 
 
 class MRI_Dataset(Dataset):
@@ -12,7 +16,7 @@ class MRI_Dataset(Dataset):
     Base Dataset class, MRI_Dataset_2d and MRI_Dataset_3d inherit from this
     """
 
-    def __init__(self, dset_name, dset_type, paths, params):
+    def __init__(self, dset_name, dset_type, paths, params, config):
         """
         Args:
         dset_name - string: name of the dataset
@@ -23,13 +27,15 @@ class MRI_Dataset(Dataset):
         self.dset_name = dset_name
         self.dset_type = dset_type
         self.paths = paths
-        self.seg_type = params.seg_type
+        self.seg_type = config.seg_type
         self.norm_type = params.norm_type
-        self.augmentor = data_augmentation.Augmentor(params)
+        self.params = params
+        self.config = config
+        self.augmentor = data_augmentation.Augmentor(params, config)
         self.load_everything_in_memory()
-        if general_config.visualize_dataset:
+        self.initialize_elements()
+        if config.visualize_dataset:
             self.visualize_dataset_samples()
-        self.necessary_preprocessing()
 
     def __len__(self):
         raise NotImplementedError
@@ -38,42 +44,38 @@ class MRI_Dataset(Dataset):
         raise NotImplementedError
 
     def load_everything_in_memory(self):
-        """
-        Since the datasets are small enough to be loaded wholely in memory....
-
-        self.images = list of volumes
-        self.masks = labels for those volumes
-        self.info = list of namedtuple(affine, header) for each volume
-        """
-        images, masks, infos = [], [], []
-        for path in self.paths:
-            image, mask, info = reading.get_img_mask_pair(image_path=path,
-                                                          numpy=general_config.read_numpy,
-                                                          dset_name=self.dset_name,
-                                                          seg_type=self.seg_type)
-            # permute dimensions to D x H x W for easier indexing
-            # after processing will be switched back
-            images.append(np.transpose(image, (2, 0, 1)))
-            masks.append(np.transpose(mask, (2, 0, 1)))
-            infos.append(info)
-
-        self.images = images
-        self.masks = masks
-        self.infos = infos
-
-    def necessary_preprocessing(self):
         raise NotImplementedError
 
     def visualize_dataset_samples(self):
-        for image, mask in zip(self.images, self.masks):
-            visualization.visualize_img_mask_pair(np.transpose(image, (1, 2, 0)),
-                                                  np.transpose(mask, (1, 2, 0)))
-            exit = input("exit? y/n")
-            if exit == 'y':
-                return
+        for path, image, mask in zip(self.paths, self.images, self.masks):
+            print("image path", path)
+            if len(image.shape) == 3:
+                visualization.visualize_img_mask_pair(image, mask)
+            else:
+                visualization.visualize_img_mask_pair_2d(image, mask)
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
 
     def dataset_info(self):
         print("Dataset name: ", self.dset_name, "\n")
         print("Dataset type: ", self.dset_type, "\n")
         print("Elements in dataset: ", len(self.paths), "\n")
         print("Segmentation type: ", self.seg_type, "\n")
+
+    def initialize_elements(self):
+        if self.config.dataset == constants.imatfib_root_dir:
+            self.dataset_mean = general_dataset_settings.imatfib_dataset_mean
+            self.dataset_std = general_dataset_settings.imatfib_dataset_std
+
+        elif self.config.dataset == constants.acdc_root_dir or self.config.dataset == constants.acdc_test_dir:
+            self.dataset_mean = general_dataset_settings.acdc_dataset_mean
+            self.dataset_std = general_dataset_settings.acdc_dataset_std
+
+        else:
+            self.dataset_mean = general_dataset_settings.mmwhs_dataset_mean
+            self.dataset_std = general_dataset_settings.mmwhs_dataset_std
+
+        if self.params.norm_type == constants.per_slice:
+            print("Using per slice normalization!")
+        else:
+            print("Dataset mean and std: ", self.dataset_mean, self.dataset_std)

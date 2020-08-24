@@ -1,0 +1,21 @@
+{
+"learning_rate": 0.001,
+"batch_size": 12,
+"n_epochs": 3,
+"default_height": 480,
+"default_width": 480,
+"k_split": 5,
+"norm_type": "per_dataset",
+"data_augmentation": "simple",
+"optimizer": "adam",
+"weight_decay": 0.0001,
+"use_aspp": false,
+"lr_decay": "divide",
+"first_decay": 1,
+"second_decay": 2,
+"replace_stride": [false, false, true],
+"shrinking_factor": 3.2,
+"seqtrain": false,
+"layer_count": [3, 4, 6, 3],
+"err_margin": 10
+}

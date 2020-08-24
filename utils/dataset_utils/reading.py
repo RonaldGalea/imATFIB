@@ -1,18 +1,38 @@
 import numpy as np
 import nibabel as nib
 from pathlib import Path
-import constants
 from collections import namedtuple
+
+from utils.dataset_structuring import acdc, general
+import constants
 
 Info = namedtuple('Info', ['affine', 'header'])
 
 
-def get_img_mask_pair(image_path, numpy=False, dset_name=constants.acdc_root_dir,
-                      seg_type=constants.multi_class_seg):
+def get_train_val_paths(dataset_name, k_split):
+    """
+    This function splits the samples from the dataset directory in two sets: train and val,
+    creating two Dataset objects using them
+
+    For the ACDC dataset the split is fixed, exactly as done by Baumgarter et al.
+    For imogen and mmwhs, the split factor is controlled by k_split
+    """
+    dataset_dir = Path.cwd() / 'datasets' / dataset_name
+    if constants.acdc_root_dir == dataset_name or constants.acdc_test_dir == dataset_name:
+        split_dict = acdc.acdc_train_val_split(dataset_dir)
+    elif constants.mmwhs_test == dataset_name:
+        split_dict = general.train_val_split(dataset_dir, k_split=0)
+    else:
+        split_dict = general.train_val_split(dataset_dir, k_split=k_split)
+
+    return split_dict
+
+
+def read_img_mask_pair(image_path, dset_name=constants.acdc_root_dir,
+                       seg_type=constants.multi_class_seg):
     """
     Args:
     image_path - pathlib.Path: path to image
-    numpy - bool: if true this expects to find .npy files
     dset_name - string: since the original datasets have different structures (and i don't want
     to modify them, paths will have to be contructed accordingly)
     seg_type - string: multi class or whole heart
@@ -33,28 +53,29 @@ def get_img_mask_pair(image_path, numpy=False, dset_name=constants.acdc_root_dir
         mask_path = mask_path / (image_path.stem + image_path.suffix)
 
     elif constants.mmwhs_root_dir in dset_name:
+        parts = image_path.stem.split('.')
+        name = ''.join(parts[0]+'mapped.' + parts[1])
         mask_path = image_path.parent.parent / 'ground-truth' / \
-            seg_type / (image_path.stem + image_path.suffix)
+            seg_type / (name + image_path.suffix)
     else:
         # add _gt to get the path to the label
         name_with_ext = image_path.parts[-1]
         only_name = name_with_ext.split('.')[0]
         gt_name_with_ext = only_name + '_gt.nii.gz'
-        if numpy:
-            gt_name_with_ext = only_name + '_gt.npy'
         mask_path = Path(str(image_path).replace(name_with_ext, gt_name_with_ext))
 
-    # print("From reading: ", image_path)
-    # print("From reading: ", mask_path, "\n")
-    image_info, mask_info = nib.load(image_path), nib.load(mask_path)
-    if numpy:
-        image = np.load(image_path)
-        mask = np.load(mask_path)
-    else:
-        image = np.array(image_info.dataobj)
-        mask = np.array(mask_info.dataobj)
-    # necessary information to save .nii file and compute metrics
-    image = image.astype(np.float32)
-    info = Info(mask_info.affine, mask_info.header)
+    image, _ = read_image(image_path, type="pred")
+    mask, info = read_image(mask_path)
 
     return image, mask, info
+
+
+def read_image(image_path, type="gt"):
+    image_info = nib.load(image_path)
+    image = np.array(image_info.dataobj)
+    if type == "pred":
+        image = image.astype(np.float32)
+
+    info = Info(image_info.affine, image_info.header)
+
+    return image, info

@@ -1,8 +1,12 @@
 from medpy.metric.binary import dc
 import numpy as np
+import torch
 
 
-def metrics(img_gt, img_pred, n_classes):
+from utils.training_utils.box_utils import get_intersection_area, get_bbox_area, get_IoU, convert_offsets_to_bboxes, wh2corners
+
+
+def metrics(img_gt, img_pred, classes):
     """
     author: Clément Zotti (clement.zotti@usherbrooke.ca)
     date: April 2017
@@ -30,7 +34,7 @@ def metrics(img_gt, img_pred, n_classes):
 
     res = []
     # Loop on each classes of the input images
-    for c in range(1, n_classes + 1):
+    for c in classes:
         # Copy the gt image to not alterate the input
         gt_c_i = np.copy(img_gt)
         gt_c_i[gt_c_i != c] = 0
@@ -49,3 +53,67 @@ def metrics(img_gt, img_pred, n_classes):
         res += [dice]
 
     return np.array(res)
+
+
+def harsh_IOU(pred, target, heart_presence, anchor):
+    """
+    Regular IOU + an encompassing penalty
+    If the predicted box does not encompass the ground truth, the following penalty will be applied
+
+    final_IOU = regular_IOU * (100 - missed_percentage * 2)
+
+    that is, if a prediction misses 50% of a gt box, the effective IOU will be computed as 0
+
+    Args:
+    pred: batch x 4 tensor
+    target: batch x 4 tensor
+    heart_presence: batch tensor
+    """
+
+    # print("IN harsh iou")
+    # print("pred", pred.shape)
+    # print("target", target.shape)
+    # print("heart_presence", heart_presence.shape)
+    # print("anchor", anchor.shape)
+
+    # only keep images having a heart instance
+    heart_presence = heart_presence.to(torch.bool)
+    pred = pred[heart_presence]
+    target = target[heart_presence]
+    anchor = anchor[heart_presence]
+
+    # convert model outputs to ((x_ctr, y_ctr, width, height)), then (x_left, y_left, x_right, y_right)
+    pred = convert_offsets_to_bboxes(pred, anchor)
+
+    pred = wh2corners(pred)
+    intersection_area = get_intersection_area(pred, target)
+
+    iou = get_IoU(pred, target, intersection_area)
+    target_area = get_bbox_area(target)
+
+    # check what percentage of target is covered by intersection_area, should be 100% to avoid penalty
+    missed = 1 - intersection_area / target_area
+    harsh_iou = iou * (1 - missed * 2)
+    harsh_iou[harsh_iou < 0] = 0
+
+    return torch.mean(iou), torch.mean(harsh_iou)
+
+
+def f1_score(pred, targ):
+    """
+    Args:
+    pred: batch x 1 tensor
+    target: batch x 1 tensor
+    """
+    pred = pred.sigmoid()
+    pred[pred > 0.5] = 1
+
+    positives = targ == 1
+    tp = pred[positives].sum()
+    fp = pred[~positives].sum()
+    fn = (1 - pred[positives]).sum()
+
+    precision = tp/(tp+fp)
+    recall = tp/(tp+fn)
+
+    return 2 * (precision * recall) / (precision + recall)

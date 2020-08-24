@@ -1,0 +1,8 @@
+{
+  "model_id": "ResNeXt_DeepLabV3_plus",
+  "dataset": "ACDC_training",
+  "evaluation_step": 1,
+  "statistics_print_step": 10,
+  "visualize_dataset": false,
+  "seg_type": "multiple-classes"
+}

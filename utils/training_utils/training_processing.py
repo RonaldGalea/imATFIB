@@ -19,18 +19,17 @@ def compute_dice(prediction, mask):
     concrete prediction - ndarray (depth height width) uint8
     mask - ndarray (depth height width) uint8
     """
+    prediction = prediction.cpu()
     mask = mask.cpu().numpy().astype(np.uint8)
-    classes = list(np.unique(mask))
-    # do not consider background
-    classes.pop(0)
+    classes = list(range(1, prediction.shape[1]))
     # get the maximum values of the channels dimension, then take the indices
     prediction = prediction.max(1)[1]
-    prediction = prediction.detach().cpu().numpy().astype(np.uint8)
+    prediction = prediction.numpy().astype(np.uint8)
     dice = metrics.metrics(mask, prediction, classes=classes)
     return dice, prediction, mask
 
 
-def process_volume(model, volume, shape, params, r_info=None, process_in_chunks=False):
+def process_volume(model, volume, shape, params, r_info=None, process_in_chunks=False, return_cpu=True):
     """
     Args:
     model: nn.Module
@@ -38,25 +37,28 @@ def process_volume(model, volume, shape, params, r_info=None, process_in_chunks=
     shape: original shape the ROI must be resized to
     r_info: list - coords of original roi for each slice
     process_in_chunks: - process volume in batches, not as a whole
+    return_cpu: - bool: if true returns cpu tensor, else cuda tensor, only applicable when processing
+    in chunks
 
     Get the processed volume by the model (after log softmax), upsampled to the original size, ie
     the size of the mask
 
     Returns:
-    cuda tensor (depth channels height width)
+    cpu/cuda tensor (depth channels height width)
     """
     if len(volume.shape) == 3:
         # make batch, channel, height, width
         volume = volume.unsqueeze(1)
     if process_in_chunks:
-        processed_volume = process_chunks(volume, model, params)
+        processed_volume = process_chunks(volume, model, params, return_cpu)
     else:
         processed_volume = model(volume)
 
     if r_info:
         processed_volume = roi_crop.reinsert_roi(processed_volume, r_info, params)
+
     processed_volume = torch.nn.functional.interpolate(processed_volume, shape,
-                                                       mode="bilinear")
+                                                       mode="bilinear", align_corners=False)
     return processed_volume
 
 
@@ -152,16 +154,16 @@ def normalize_tensor(image, mean_std=None):
     return image
 
 
-def process_chunks(volume, model, params):
+def process_chunks(volume, model, params, return_cpu):
     chunks = []
     depth = volume.shape[0]
     cur_slice = 0
     end_slice = min(params.batch_size, depth)
     while True:
         curr_chunk = volume[cur_slice:end_slice]
-        print("Current chunk size: ", curr_chunk.shape)
-        processed_chunk = process_a_chunk(curr_chunk, model)
-        print("Processed chunk device: ", processed_chunk.shape)
+        # print("Current chunk size and device: ", curr_chunk.shape, curr_chunk.device)
+        processed_chunk = process_a_chunk(curr_chunk, model, return_cpu)
+        # print("Processed chunk shape and device: ", processed_chunk.shape, processed_chunk.device, "\n")
         chunks.append(processed_chunk)
         if end_slice == depth:
             return torch.cat(chunks)
@@ -172,7 +174,9 @@ def process_chunks(volume, model, params):
             end_slice = depth
 
 
-def process_a_chunk(chunk, model):
+def process_a_chunk(chunk, model, return_cpu):
     chunk = chunk.to(general_config.device)
     processed_chunk = model(chunk)
-    return processed_chunk.cpu()
+    if return_cpu:
+        return processed_chunk.cpu()
+    return processed_chunk

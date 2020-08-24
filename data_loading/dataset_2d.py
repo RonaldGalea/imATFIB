@@ -33,8 +33,8 @@ class MRI_Dataset_2d(dataset_base.MRI_Dataset):
         images, masks = [], []
         for path in self.paths:
             image, mask, info = reading.read_img_mask_pair(image_path=path,
-                                                          dset_name=self.dset_name,
-                                                          seg_type=self.seg_type)
+                                                           dset_name=self.dset_name,
+                                                           seg_type=self.seg_type)
             depth = image.shape[2]
             for i in range(depth):
                 images.append(image[:, :, i])
@@ -85,10 +85,16 @@ class MRI_Dataset_2d_Segmentation(MRI_Dataset_2d):
         return torch.stack(images_list), torch.stack(masks_list)
 
 
+"""
+Classical detection did not perform well, no longer used
+"""
+
+
 class MRI_Dataset_2d_Detection(MRI_Dataset_2d):
     def __init__(self, dset_name, dset_type, paths, params, config):
         super(MRI_Dataset_2d_Detection, self).__init__(dset_name, dset_type, paths, params, config)
-        self.anchors_xyxy = torch.tensor(params.anchors).to(torch.float32) / self.params.default_height
+        self.anchors_xyxy = torch.tensor(params.anchors).to(
+            torch.float32) / self.params.default_height
         self.anchors_xywh = box_utils.corners_to_wh(self.anchors_xyxy)
 
     def __getitem__(self, batched_indices):

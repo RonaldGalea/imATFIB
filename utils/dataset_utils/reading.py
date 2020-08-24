@@ -20,6 +20,8 @@ def get_train_val_paths(dataset_name, k_split):
     dataset_dir = Path.cwd() / 'datasets' / dataset_name
     if constants.acdc_root_dir == dataset_name or constants.acdc_test_dir == dataset_name:
         split_dict = acdc.acdc_train_val_split(dataset_dir)
+    elif constants.mmwhs_test == dataset_name:
+        split_dict = general.train_val_split(dataset_dir, k_split=0)
     else:
         split_dict = general.train_val_split(dataset_dir, k_split=k_split)
 

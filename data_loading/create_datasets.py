@@ -56,7 +56,6 @@ def create_val_set(dataset_name, params, config):
 def create_test_set(dataset_name, params, config):
     split_dict = reading.get_train_val_paths(dataset_name, params.k_split)
     test_list = split_dict['train'] + split_dict['val']
-    # test_list = split_dict['val']
 
     test_dataset = dataset_3d.MRI_Dataset_3d_Segmentation_Test(dset_name=dataset_name,
                                                                dset_type='val',

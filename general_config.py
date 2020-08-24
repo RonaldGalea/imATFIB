@@ -8,4 +8,3 @@ device - string: cuda:0 or cpu
 amp_opt_level="O2"
 use_amp = False
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-# device = torch.device("cpu")

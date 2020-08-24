@@ -117,13 +117,18 @@ def load_model_weights(model, dset_name, experiment_name):
     print("Weights loaded successfully!")
 
 
-def save_model(epoch, model, optimizer, stats, dset_name, experiment_name):
+def save_model(epoch, model, optimizer, stats, dset_name, experiment_name, last_model=False):
+    if last_model:
+        save_path = constants.model_last_path.format(dset_name, experiment_name)
+    else:
+        save_path = constants.model_path.format(dset_name, experiment_name)
+        stats.save(constants.stats_path.format(dset_name, experiment_name))
+
     torch.save({
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
-    }, constants.model_path.format(dset_name, experiment_name))
-    stats.save(constants.stats_path.format(dset_name, experiment_name))
+    }, save_path)
     print("Model saved successfully!")
 
 

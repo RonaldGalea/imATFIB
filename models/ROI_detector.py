@@ -4,9 +4,13 @@ import torch.nn as nn
 
 import general_config
 import constants
-import general_dataset_settings
-from models.model_parts import mobilenetv2, resnet
+from models.model_parts import resnet
 from utils.training_utils import box_utils
+
+
+"""
+Classical detection did not perform well, no longer used
+"""
 
 
 class ROI_Detector(nn.Module):

@@ -47,8 +47,6 @@ def validate_params(params):
         roi_crop = params.roi_crop
         if roi_crop not in constants.roi_types:
             raise AssertionError("Params not ok..." + "roi_crop")
-        if roi_crop != constants.no_roi_extraction and params.default_height != 256:
-            print("ROI crop is used but the default height is not 256, is this want you truly want?")
     if hasattr(params, "load_type"):
         load_type = params.load_type
         if load_type not in constants.load_types:

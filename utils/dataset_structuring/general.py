@@ -1,7 +1,6 @@
 from pathlib import Path
 import numpy as np
 import nibabel as nib
-import shutil
 
 
 def train_val_split(input_folder, k_split=5):
@@ -22,7 +21,7 @@ def train_val_split(input_folder, k_split=5):
 
     if k_split == 0:
         for file_path in total:
-            split['train'].append(file_path)
+            split['val'].append(file_path)
         return split
 
     for i, file_path in enumerate(total):
@@ -49,10 +48,11 @@ def mmwhs_gt_mapping(input_folder):
     for img_path in total:
         nimg = nib.load(img_path)
         img, affine, header = nimg.get_data(), nimg.affine, nimg.header
+        print("Labels before: ", np.unique(img))
 
         for k, v in mapping.items():
             img[img == k] = v
-        print(np.unique(img))
+        print("Labels after: ", np.unique(img))
 
         nimg_mapped = nib.Nifti1Image(img, affine=affine, header=header)
 

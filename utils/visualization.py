@@ -113,12 +113,16 @@ def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask', us
 
     Return:
     """
+    print("Unique elements in original mask: ", np.unique(mask))
     if not use_orig_res:
+        print("Original shape: ", image.shape)
         resize = Resize(height=height, width=width, interpolation=cv2.INTER_CUBIC)
         augmented = resize(image=image, mask=mask)
         image = augmented['image']
         mask = augmented['mask']
+        print("Visualization shape: ", image.shape)
 
+    print("Unique labels in mask: ", np.unique(mask))
     image = (image * (255/(image.max()+1))).astype(np.uint8)
     mask = (mask * (255/(mask.max()+1))).astype(np.uint8)
     cv2.imshow(img_name, image)

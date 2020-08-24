@@ -35,4 +35,6 @@ def prepare(model_ids, dataset_name):
         params_list.append(params)
         configs_list.append(config)
 
+    if len(model_ids) == 1:
+        return models[0], params_list[0], configs_list[0]
     return models, params_list, configs_list

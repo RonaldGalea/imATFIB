@@ -86,6 +86,11 @@ class MRI_Dataset_3d_Segmentation(MRI_Dataset_3d):
         return image, mask, reconstruction_info, header_info
 
 
+"""
+Classical detection did not perform well, no longer used
+"""
+
+
 class MRI_Dataset_3d_Detection(MRI_Dataset_3d):
     def __init__(self, dset_name, dset_type, paths, params, config):
         super(MRI_Dataset_3d_Detection, self).__init__(dset_name, dset_type, paths, params, config)

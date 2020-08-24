@@ -26,17 +26,12 @@ class Augmentor():
         self.params = params
         self.config = config
         self.plain_resize = Resize(height=params.default_height, width=params.default_width)
-        self.random_crop_resize = RandomResizedCrop(height=params.default_height,
-                                                    width=params.default_width,
-                                                    scale=params.random_crop_scale,
-                                                    ratio=params.random_crop_ratio)
-        self.roi_resize = Resize(height=params.roi_height, width=params.roi_width)
         self.initialize_elements()
 
     def segmentor_train_data(self, image, mask):
         image, mask = self.resizer(image=image, mask=mask).values()
         # extract roi
-        if self.params.roi_crop != constants.no_roi_extraction:
+        if self.using_roi:
             setup = roi_crop.get_roi_crop_setup(self.params, self.config)
             box_coords = roi_crop.compute_ROI_coords(mask, self.params, setup)
             image = roi_crop.extract_ROI(image, box_coords)
@@ -47,7 +42,7 @@ class Augmentor():
             image, mask = self.aug(image=image, mask=mask).values()
 
         # if roi was used, interpolate to roi size
-        if self.params.roi_crop != constants.no_roi_extraction:
+        if self.using_roi:
             image, mask = self.roi_resize(image=image, mask=mask).values()
 
         return image, mask
@@ -66,8 +61,9 @@ class Augmentor():
     def segmentor_valid_data(self, volume, mask):
         reconstruction_info = None
         resized_volume, resized_mask = self.resize_volume_mask_pair(volume, mask)
-        if self.params.roi_crop != constants.no_roi_extraction:
-            volume_roi, reconstruction_info = roi_crop.extract_ROI_3d(resized_volume, resized_mask, self.params, self.config)
+        if self.using_roi:
+            volume_roi, reconstruction_info = roi_crop.extract_ROI_3d(
+                resized_volume, resized_mask, self.params, self.config)
             return volume_roi, reconstruction_info, resized_volume
 
         return resized_volume, reconstruction_info, resized_volume
@@ -109,12 +105,17 @@ class Augmentor():
         return np.array(resized_image)
 
     def initialize_elements(self):
+        self.using_roi = hasattr(self.params, "roi_crop")
         self.resizer = self.plain_resize
-        # use random crop if not using roi extraction, unless otherwise specified by scale
-        if self.params.data_augmentation != constants.no_augmentation and hasattr(self.params, "roi_crop"):
-            if self.params.random_crop_scale != [1, 1]:
-                print("Using random resized cropping")
-                self.resizer = self.random_crop_resize
+
+        if hasattr(self.params, "random_crop_scale"):
+            self.resizer = RandomResizedCrop(height=self.params.default_height,
+                                             width=self.params.default_width,
+                                             scale=self.params.random_crop_scale,
+                                             ratio=self.params.random_crop_ratio)
+
+        if self.using_roi:
+            self.roi_resize = Resize(height=self.params.roi_height, width=self.params.roi_width)
 
         starting_aug = [
             Rotate(limit=15),

@@ -5,8 +5,6 @@ import torch
 
 import constants
 from utils.dataset_utils import reading
-import general_config
-from utils import visualization
 
 
 def get_dataset_gt_bounds(dataset_name, params, config):
@@ -24,7 +22,7 @@ def get_dataset_gt_bounds(dataset_name, params, config):
     x_max, x_min, y_max, y_min = -1, math.inf, -1, math.inf
     for path in all_samples:
         image, mask, _ = reading.read_img_mask_pair(image_path=path, dset_name=dataset_name,
-                                                   seg_type=config.seg_type)
+                                                    seg_type=config.seg_type)
 
         # do all computation relative to the actual inference size
         mask = cv2.resize(mask, dsize=(params.default_height, params.default_width))
@@ -72,7 +70,7 @@ def reinsert_roi(prediction, reconstruction_info, params):
     depth, n_classes = prediction.shape[:2]
     height, width = params.default_height, params.default_width
     original_pred = torch.zeros((depth, n_classes, height, width))
-    original_pred = original_pred.to(general_config.device)
+    original_pred = original_pred.to(prediction.device)
 
     # resize predicted rois
     orig_roi_sizes = reconstruction_info
@@ -83,7 +81,7 @@ def reinsert_roi(prediction, reconstruction_info, params):
         current_roi = prediction[idx].unsqueeze(0)
         original_roi = torch.nn.functional.interpolate(current_roi,
                                                        (orig_roi_height, orig_roi_width),
-                                                       mode="bilinear")
+                                                       mode="bilinear", align_corners=False)
         # insert back
         original_pred[idx, :, y_min:y_max+1, x_min:x_max+1] = original_roi
     return original_pred
@@ -189,7 +187,8 @@ def get_volume_coords(mask, params, config, validation=False, double_seg=False):
     if torch.is_tensor(mask):
         mask = mask.numpy()
     for slice in mask:
-        (x_min, y_min, x_max, y_max) = compute_ROI_coords(slice, params, setup, validation=validation)
+        (x_min, y_min, x_max, y_max) = compute_ROI_coords(
+            slice, params, setup, validation=validation)
         score = no_roi_check(x_min, y_min, x_max, y_max, params)
         coords_n_scores.append((x_min, y_min, x_max, y_max, score))
     return coords_n_scores

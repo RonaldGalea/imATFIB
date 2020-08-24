@@ -111,6 +111,11 @@ class Segmentor_Statistics(Model_Statistics):
         self.epoch = epoch
 
 
+"""
+Classical detection did not perform well, no longer used
+"""
+
+
 class Detection_Statistics(Model_Statistics):
     def __init__(self, loader_size, params, config, type, model=None):
         super(Detection_Statistics, self).__init__(loader_size, params, config, type, model=model)

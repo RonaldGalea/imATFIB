@@ -95,12 +95,13 @@ def update_tensorboard_graphs_detection(writer, train_metrics, train_loss, val_m
     writer.add_scalar('F1/val', val_f1, epoch)
 
 
-def create_tensorboard_name(args, params):
+def create_tensorboard_name(experiment_name, dataset_name, params):
     rand_id = randint(0, 10000)
-    dir = args.experiment_name + "/" + args.dataset_name + "/"
+    dir = experiment_name + "/" + dataset_name + "/"
     params_ = params.dict
     suffix = ''
-    wanted_keys = ['n_epochs', 'default_width', 'roi_width', 'data_augmentation', 'roi_crop', 'relative_roi_perturbation', 'use_min_size']
+    wanted_keys = ['model_id', 'n_epochs', 'default_width', 'roi_width', 'data_augmentation',
+                   'roi_crop', 'relative_roi_perturbation', 'use_min_size']
     for k, v in params_.items():
         if k in wanted_keys:
             suffix += str(v) + "_"

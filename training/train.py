@@ -11,7 +11,7 @@ except ImportError:
 import general_config
 import constants
 from training import model_statistics, freezer
-from utils.training_utils import training_setup, training_processing, prints, box_utils
+from utils.training_utils import training_setup, training_processing, prints
 from utils import metrics
 
 
@@ -73,14 +73,18 @@ class Model_Trainer():
         train_loss = self.train_statistics.get_loss()
         self.update_tensorboard(val_metrics, val_loss, train_metrics, train_loss, epoch)
 
-    def post_validation_steps(self, epoch):
+    def post_validation_steps(self, epoch, no_saving=False):
         self.print_validation_stats()
-        self.check_saving(epoch)
+        if no_saving is False:
+            self.check_saving(epoch)
         return self.val_statistics.get_metrics(), self.val_statistics.get_loss()
 
     def check_saving(self, epoch):
         train_metrics = self.train_statistics.get_metrics()
         val_perf = self.val_statistics.get_performance()
+
+        training_setup.save_model(epoch, self.model, self.optimizer, self.stats,
+                                  self.dataset_name, self.experiment_name, last_model=True)
 
         if val_perf > self.stats.val:
             self.val_statistics.update_stats(self.stats, train_metrics)
@@ -146,7 +150,7 @@ class Segmentation_Trainer(Model_Trainer):
         # weight = torch.tensor([0.05, 0.95]).to(general_config.device)
         self.loss_function = torch.nn.NLLLoss(weight=None, reduction='mean')
 
-    def evaluate(self, epoch=0):
+    def evaluate(self, epoch=0, no_saving=False):
         print("Starting evaluation at epoch: ", epoch, "\n")
         self.model.eval()
         self.val_statistics.reset(epoch)
@@ -156,7 +160,7 @@ class Segmentation_Trainer(Model_Trainer):
                 loss_value, dice = self.process_sample_val(image, mask, r_info)
                 self.val_statistics.update(loss_value, dice)
 
-        return self.post_validation_steps(epoch)
+        return self.post_validation_steps(epoch, no_saving=no_saving)
 
     def process_sample_train(self, image, mask):
         prediction = self.model(image)
@@ -176,7 +180,7 @@ class Segmentation_Trainer(Model_Trainer):
 
     def process_sample_val(self, volume, mask, r_info):
         processed_volume = training_processing.process_volume(self.model, volume, mask.shape[1:],
-                                                              self.params, r_info)
+                                                              self.params, r_info, process_in_chunks=True, return_cpu=False)
         loss = self.loss_function(processed_volume, mask)
         dice, _, _ = training_processing.compute_dice(processed_volume, mask)
         return loss.item(), dice
@@ -185,6 +189,11 @@ class Segmentation_Trainer(Model_Trainer):
         prints.update_tensorboard_graphs_segmentation(self.writer, np.mean(train_metrics),
                                                       train_loss, np.mean(val_metrics),
                                                       val_loss, epoch + 1)
+
+
+"""
+Classical detection did not perform well, no longer used
+"""
 
 
 class Detector_Trainer(Model_Trainer):

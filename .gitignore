@@ -23,7 +23,9 @@ experiments/acdc_test_set/*
 
 results/*
 
-datasets/*
 acdc_test/*
 acdc_test_resnext/*
 acdc_test_all_ensemble/*
+
+*.nii
+*.gz

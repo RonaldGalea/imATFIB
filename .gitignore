@@ -29,3 +29,4 @@ acdc_test_all_ensemble/*
 
 *.nii
 *.gz
+.ipynb_checkpoints/*

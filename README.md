@@ -37,3 +37,7 @@ All Ensemble     |91.48| 93.88 | 90.26  | 91.87  | 13.21 | 10.99 | 12.08 |
 All Ensemble* = Ensemble of Standard DeepLab, Unet and Double Segmentation DeepLab, Unet
 
 - Results obtained on the validation set are consistent with the official test set, confirming that both double segmentation and ensembling (especially of distinct models, such as Unet and DeepLab) boost performance.
+
+# Image Samples
+
+![Sample one model](https://github.com/RonaldGalea/imATFIB/blob/master/sample.png)

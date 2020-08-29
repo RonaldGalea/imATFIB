@@ -23,7 +23,11 @@ def save_models_results(model_ids, dataset_name):
     dataset_name - string
     """
     # prepare models
-    models, params_list, configs_list = prepare_models.prepare(model_ids, dataset_name)
+    if len(model_ids) > 1:
+        models, params_list, configs_list = prepare_models.prepare(model_ids, dataset_name)
+    else:
+        model, params, config = prepare_models.prepare(model_ids, dataset_name)
+        models, params_list, configs_list = [model], [params], [config]
 
     model_preds, model_dices = [], []
     for model, params, config in zip(models, params_list, configs_list):
@@ -32,7 +36,7 @@ def save_models_results(model_ids, dataset_name):
 
         # run inference
         validation_loader.dataset.visualization_mode = True
-        preds, dices = inference.run_model_inference(validation_loader, model, params, config)
+        preds, dices = inference.run_model_inference(validation_loader, model, params)
 
         model_preds.append(preds)
         model_dices.append(dices)
@@ -47,7 +51,7 @@ def save_predictions(dataloader, model_names, dataset_name, model_pred_lists, mo
     model_names - to print which models are being used
     dataset_name - str
     model_pred_list - the predictions of each model
-    model_dice_lists - the dices for each slice
+    model_dice_lists (optional) - the dices for each slice
     """
     # note vij - volume j predicted by model i
     # currently we have a list of lists with each models predictions: so v11, v21, v31... v12, v22...
@@ -65,6 +69,7 @@ def save_predictions(dataloader, model_names, dataset_name, model_pred_lists, mo
 
     total = 0
     for vol_idx, (_, mask, _, orig_volume) in enumerate(dataloader):
+
         c_pred_volume = volumes_pred[vol_idx]
         c_pred_dices = dice_values[vol_idx]
 
@@ -75,10 +80,12 @@ def save_predictions(dataloader, model_names, dataset_name, model_pred_lists, mo
         for idx, (inp, msk) in enumerate(zip(orig_volume, mask)):
             total += 1
             inp = inp.astype(np.float32)
+            inp = cv2.resize(inp, dsize=(msk.shape[1], msk.shape[0]))
 
             colored_mask = color_a_mask(msk, type="gt")
 
             image_list = [inp, colored_mask]
+
             name_list = ["Input", "Mask"]
             save_id = "results/" + dataset_name + "/" + \
                 "".join(model_names) + "/" + str(total) + "_" + str(idx) + "_" + str(vol_idx)
@@ -96,7 +103,7 @@ def save_predictions(dataloader, model_names, dataset_name, model_pred_lists, mo
                     caption = model_name + " " + "{:.3f}".format(float(np.mean(dice[idx])))
                 else:
                     caption = model_name
-                overlays.append(base_colored + colored_mask)
+                overlays.append((base_colored + colored_mask) / 2)
                 overlay_names.append(caption)
 
             image_list.extend(overlays)
@@ -177,8 +184,8 @@ def show_images(images, cols=1, titles=None, save_id=None, n_classes=2):
         ax.set_title(title)
 
     gt_colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]
-    # pred_colors = [(0, 1, 1), (1, 140 / 255, 0), (1, 1, 0)]
-    pred_colors = [(0, 1, 0), (1, 140 / 255, 0), (1, 1, 0)]
+    pred_colors = [(1, 1, 0), (0, 1, 1), (1, 0, 1)]
+    # pred_colors = [(0, 1, 0), (1, 140 / 255, 0), (1, 1, 0)]
     labels, colors = [], []
     for idx, c in enumerate(range(1, n_classes)):
         labels.append("ground truth class - " + str(c))
@@ -186,7 +193,7 @@ def show_images(images, cols=1, titles=None, save_id=None, n_classes=2):
         labels.append("intersection class - " + str(c))
         colors.append(gt_colors[idx])
         colors.append(pred_colors[idx])
-        colors.append([x+y for x, y in zip(gt_colors[idx], pred_colors[idx])])
+        colors.append([(x+y)/2 for x, y in zip(gt_colors[idx], pred_colors[idx])])
 
     patches = [mpatches.Patch(color=colors[i], label=labels[i]) for i in range(len(labels))]
     plt.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
@@ -260,14 +267,14 @@ def color_a_mask(mask, type="prediction"):
         yellow - (255,255,0)
     """
     gt_colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]
-    # pred_colors = [(0, 1, 1), (1, 140 / 255, 0), (1, 1, 0)]
-    pred_colors = [(0, 1, 0), (1, 140 / 255, 0), (1, 1, 0)]
+    pred_colors = [(1, 1, 0), (0, 1, 1), (1, 0, 1)]
+    # pred_colors = [(0, 1, 0), (1, 140 / 255, 0), (1, 1, 0)]
 
     current_colors = gt_colors
     if type == "prediction":
         current_colors = pred_colors
 
-    classes = list(np.unique(mask))
+    classes = [0, 1, 2, 3]
     # not counting background
     classes.pop(0)
 

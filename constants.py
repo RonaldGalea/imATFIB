@@ -28,7 +28,7 @@ resnet18_detector = "resnet18_detector"
 resnet50_detector = "resnet50_detector"
 detectors = [resnet18_detector, resnet50_detector]
 
-acdc_heart = ["RVC", "LVC", "LVMyo"]
+acdc_heart = ["RVC", "LVMyo", "LVC"]
 mmwhs_heart = ["LVC", "LVMyo", "RVC", "LA", "RA", "AA", "PA"]
 
 divide_decay = "divide"

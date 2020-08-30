@@ -3,12 +3,11 @@ import cv2
 from albumentations import Resize
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-import copy
+
+import constants
 
 from utils import inference
-from utils.ROI_crop import roi_crop
 from utils.training_utils import training_setup
-from utils import metrics
 from utils import prepare_models
 
 
@@ -76,6 +75,7 @@ def save_predictions(dataloader, model_names, dataset_name, model_pred_lists, mo
         # show results on the current volume
         orig_volume = orig_volume.cpu().numpy()
         mask = mask.cpu().numpy().astype(np.uint8)
+        classes = list(np.unique(mask))
 
         for idx, (inp, msk) in enumerate(zip(orig_volume, mask)):
             total += 1
@@ -103,12 +103,14 @@ def save_predictions(dataloader, model_names, dataset_name, model_pred_lists, mo
                     caption = model_name + " " + "{:.3f}".format(float(np.mean(dice[idx])))
                 else:
                     caption = model_name
-                overlays.append((base_colored + colored_mask) / 2)
+                inter = get_inter(base, msk, classes)
+                overlays.append(get_overlay(base_colored, colored_mask, inter))
                 overlay_names.append(caption)
 
             image_list.extend(overlays)
             name_list.extend(overlay_names)
-            show_images(image_list, cols=len(image_list)//2, titles=name_list, save_id=save_id)
+            show_images(image_list, cols=len(image_list)//2, titles=name_list,
+                        save_id=save_id, n_classes=len(classes))
 
 
 def visualize_img_mask_pair_2d(image, mask, img_name='img', mask_name='mask', use_orig_res=False,
@@ -188,12 +190,14 @@ def show_images(images, cols=1, titles=None, save_id=None, n_classes=2):
     # pred_colors = [(0, 1, 0), (1, 140 / 255, 0), (1, 1, 0)]
     labels, colors = [], []
     for idx, c in enumerate(range(1, n_classes)):
-        labels.append("ground truth class - " + str(c))
-        labels.append("prediction class - " + str(c))
-        labels.append("intersection class - " + str(c))
+        labels.append("ground truth class - " + constants.acdc_heart[idx])
+        labels.append("prediction class - " + constants.acdc_heart[idx])
+        labels.append("intersection class - " + constants.acdc_heart[idx])
         colors.append(gt_colors[idx])
         colors.append(pred_colors[idx])
         colors.append([(x+y)/2 for x, y in zip(gt_colors[idx], pred_colors[idx])])
+    labels.append("miss/overshot/wrong class")
+    colors.append((1, 1, 1))
 
     patches = [mpatches.Patch(color=colors[i], label=labels[i]) for i in range(len(labels))]
     plt.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
@@ -206,51 +210,6 @@ def show_images(images, cols=1, titles=None, save_id=None, n_classes=2):
     plt.close()
 
 
-def visualize_pred_coords(volume, mask, coords, scores, params, config):
-    print("unique pred elements: ", np.unique(volume))
-    for i in range(volume.shape[0]):
-        c_image = cv2.resize(volume[i], dsize=(512, 512)) * 200
-        c_mask = mask[i]
-
-        pos_1 = c_mask == 1
-        pos_2 = c_mask == 2
-        pos_3 = c_mask == 3
-        dummy_mask = np.zeros((c_mask.shape))
-        dummy_mask[pos_1] = 200.0
-        dummy_mask[pos_2] = 180.0
-        dummy_mask[pos_3] = 255.0
-        dummy_mask = cv2.resize(dummy_mask, dsize=(c_image.shape))
-
-        x_min, y_min, x_max, y_max = coords[i]
-        params_cpy = copy.deepcopy(params)
-        params_cpy.relative_roi_perturbation = [4, 20]
-        setup = roi_crop.get_roi_crop_setup(params_cpy, config)
-        print("In visualization QDFQWEF", params_cpy.relative_roi_perturbation, setup)
-        gx_min, gy_min, gx_max, gy_max = roi_crop.compute_ROI_coords(
-            dummy_mask, params_cpy, setup, validation=True)
-
-        print("Pred coords :", x_min, y_min, x_max, y_max)
-        print("GT coords :", gx_min, gy_min, gx_max, gy_max)
-
-        c_image = cv2.rectangle(c_image, (x_min, y_min), (x_max, y_max), 1000, 1)
-        c_image = cv2.rectangle(c_image, (gx_min, gy_min), (gx_max, gy_max), 1000, 1)
-
-        dummy_mask = cv2.rectangle(dummy_mask, (x_min, y_min), (x_max, y_max), 1000, 1)
-        dummy_mask = cv2.rectangle(dummy_mask, (gx_min, gy_min), (gx_max, gy_max), 1000, 1)
-
-        classes = list(np.unique(c_mask))
-        classes.pop(0)
-        dice = metrics.metrics(mask[i], volume[i], classes=classes)
-
-        print("Score: ", scores[i])
-        print("Dice: ", dice, np.mean(dice))
-        print("unique mask slice elems", np.unique(c_mask))
-
-        visualize_img_mask_pair_2d(
-            c_image, dummy_mask, str(np.mean(dice)), "after_mask", use_orig_res=True, wait=True)
-        cv2.destroyAllWindows()
-
-
 def color_a_mask(mask, type="prediction"):
     """
     mask - H x W ndarray
@@ -260,11 +219,6 @@ def color_a_mask(mask, type="prediction"):
         red - (255, 0, 0)
         green - (0, 255, 0)
         blue - (0, 0, 255)
-
-    Colors used for prediction
-        cyan - (0, 255, 255)
-        orange - (255,140,0)
-        yellow - (255,255,0)
     """
     gt_colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]
     pred_colors = [(1, 1, 0), (0, 1, 1), (1, 0, 1)]
@@ -298,3 +252,30 @@ def color_a_class(color_code, class_id, colored_mask, mask):
     for idx, intensity in enumerate(color_code):
         c_intensity_sheet = colored_mask[:, :, idx]
         c_intensity_sheet[class_indices] = intensity
+
+
+def get_overlay(msk1, msk2, inter):
+    """
+    To keep the same colors outside the intersection, only average the intersection area
+    """
+    over = np.zeros((msk1.shape))
+    over[inter] = (msk1[inter] + msk2[inter]) / 2
+
+    # overshoot, miss, wrong label
+    over[~inter] = (1, 1, 1)
+
+    return over
+
+
+def get_inter(msk1, msk2, classes):
+    inters_for_classes = []
+    for c in classes:
+        indices1 = msk1 == c
+        indices2 = msk2 == c
+        inters_for_classes.append(indices1 * indices2)
+
+    inter_all = np.zeros(msk1.shape).astype(np.bool)
+    for inter_c in inters_for_classes:
+        inter_all = inter_c + inter_all
+
+    return inter_all

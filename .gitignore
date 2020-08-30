@@ -1,6 +1,7 @@
 *.zip
 *.pdf
 *.txt
+!requirements.txt
 *.pyc
 *.npy
 *.cfg

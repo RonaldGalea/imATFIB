@@ -3,6 +3,7 @@
 - This repository contains code for training, validating and testing medical image segmentation deep learning models.
 - Pretrained models available at: [`models`](https://drive.google.com/drive/folders/1zAhlzh7EiQyU3chBUDn4GzzYxaE0ZXYB?usp=sharing)
 - Methods and models tested on the ACDC challenge [1].
+- To create an anaconda environment with the necessary packages to run the code use requirements.txt
 
 # Usage
 

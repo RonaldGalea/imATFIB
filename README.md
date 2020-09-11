@@ -34,10 +34,10 @@ Model | Dice RV | Dice LV | Dice Myo | Dice mean | Hauss RV | Hauss LV | Hauss M
 DeepLab    |90.22| 93.84 | 88.81  | 90.96  | 24.27 | 11.93 | 14.46 |
 All Ensemble     |91.48| 93.88 | 90.26  | 91.87  | 13.21 | 10.99 | 12.08 |
 
-**Note!**
-Standard Ensemble: Ensemble of models from first two rows
-ROI Ensemble: Ensemble of models from rows three and four
-All Ensemble: Ensemble of models from row one to four
+**Note!** <br>
+Standard Ensemble: Ensemble of models from first two rows <br>
+ROI Ensemble: Ensemble of models from rows three and four <br>
+All Ensemble: Ensemble of models from row one to four <br>
 
 - Results obtained on the validation set are consistent with the official test set, confirming that both double segmentation and ensembling (especially of distinct models, such as Unet and DeepLab) boost performance.
 

@@ -2,6 +2,7 @@ try:
     from apex import amp
     amp_available = True
 except ImportError:
+    amp_available = False
     print("Cannot import NVIDIA Apex...")
 
 import general_config
